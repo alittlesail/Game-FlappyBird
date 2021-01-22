@@ -1389,6 +1389,7 @@ JavaScript.JSprite = JavaScript.Class(JavaScript.JDisplayObject, {
 		this._col = 0;
 		this._tex_width = 0;
 		this._tex_height = 0;
+		this._frame = new PIXI.Rectangle(0, 0, 1, 1);
 		this._native = new PIXI.Sprite();
 	},
 	SetWidth : function(width) {
@@ -1416,13 +1417,19 @@ JavaScript.JSprite = JavaScript.Class(JavaScript.JDisplayObject, {
 		if (col < 0 || col >= this._col_count) {
 			col = 0;
 		}
-		let frame = new PIXI.Rectangle(col * tile_width, row * tile_height, tile_width, tile_height);
-		this._texture = new PIXI.Texture(texture.native.baseTexture, frame, texture.native.orig, texture.native.trim, texture.native.rotate);
+		this._frame.x = col * tile_width;
+		this._frame.y = row * tile_height;
+		this._frame.width = tile_width;
+		this._frame.height = tile_height;
+		this._texture = new PIXI.Texture(texture.native.baseTexture, this._frame, texture.native.orig, texture.native.trim, texture.native.rotate);
 		this._native.texture = this._texture;
 	},
 	SetTextureCoord : function(t, b, l, r) {
 	},
 	SetRowColCount : function(row_count, col_count) {
+		if (this._row_count === row_count && this._col_count === col_count) {
+			return;
+		}
 		this._row_count = row_count;
 		if (this._row_count < 1) {
 			this._row_count = 1;
@@ -1434,6 +1441,9 @@ JavaScript.JSprite = JavaScript.Class(JavaScript.JDisplayObject, {
 		this.UpdateFrame();
 	},
 	SetRowColIndex : function(row, col) {
+		if (this._row === row - 1 && this._col === col - 1) {
+			return;
+		}
 		this._row = row - 1;
 		this._col = col - 1;
 		this.UpdateFrame();
@@ -1452,7 +1462,13 @@ JavaScript.JSprite = JavaScript.Class(JavaScript.JDisplayObject, {
 		if (col < 0 || col >= this._col_count) {
 			col = 0;
 		}
-		this._texture.frame = new PIXI.Rectangle(col * tile_width, row * tile_height, tile_width, tile_height);
+		this._frame.x = col * tile_width;
+		this._frame.y = row * tile_height;
+		this._frame.width = tile_width;
+		this._frame.height = tile_height;
+		this._texture.frame = this._frame;
+		this._native.texture = undefined;
+		this._native.texture = this._texture;
 	},
 }, "JavaScript.JSprite");
 
