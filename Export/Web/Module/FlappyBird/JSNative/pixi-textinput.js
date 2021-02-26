@@ -391,21 +391,21 @@ class TextInput extends PIXI.Container{
 
 		this._surrogate.style = this._deriveSurrogateStyle()
 		this._surrogate.style.padding = Math.max.apply(Math,padding)
-		this._surrogate.y = this._multiline ? padding[0] : (input_bounds.height-this._surrogate.height)/2
-		this._surrogate.x = padding[3]
+		this._surrogate.y = Math.floor(this._multiline ? padding[0] : (input_bounds.height-this._surrogate.height)/2)
+		this._surrogate.x = Math.floor(padding[3])
 		this._surrogate.text = this._deriveSurrogateText()
 
 		switch (this._surrogate.style.align){
 			case 'left':
-				this._surrogate.x = padding[3]
+				this._surrogate.x = Math.floor(padding[3])
 				break
 
 			case 'center':
-				this._surrogate.x = input_bounds.width * 0.5 - this._surrogate.width * 0.5
+				this._surrogate.x = Math.floor(input_bounds.width * 0.5 - this._surrogate.width * 0.5)
 				break
 				
 			case 'right':
-				this._surrogate.x = input_bounds.width - padding[1] - this._surrogate.width
+				this._surrogate.x = Math.floor(input_bounds.width - padding[1] - this._surrogate.width)
 				break
 		}
 

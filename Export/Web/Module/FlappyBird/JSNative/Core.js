@@ -462,8 +462,16 @@ ALittle.Math_Sin = function(v) {
 	return Math.sin(v);
 }
 
+ALittle.Math_ASin = function(v) {
+	return Math.asin(v);
+}
+
 ALittle.Math_Tan = function(v) {
 	return Math.tan(v);
+}
+
+ALittle.Math_ATan = function(v) {
+	return Math.atan(v);
 }
 
 ALittle.Math_Cos = function(v) {
@@ -593,7 +601,11 @@ ALittle.String_Sub = function(s, starti, endi) {
 	} else if (endi >= 0) {
 		return s.slice(starti - 1, endi);
 	} else {
-		return s.slice(starti - 1, s.length + endi + 1);
+		endi = s.length + endi + 1;
+		if (endi <= starti - 1) {
+			return "";
+		}
+		return s.slice(starti - 1, endi);
 	}
 }
 
