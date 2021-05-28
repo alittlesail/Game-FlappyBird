@@ -1,6 +1,9 @@
 -- ALittle Generate Lua And Do Not Edit This Line!
 do
 if _G.FlappyBird == nil then _G.FlappyBird = {} end
+local FlappyBird = FlappyBird
+local Lua = Lua
+local ALittle = ALittle
 local ___pairs = pairs
 local ___ipairs = ipairs
 
@@ -26,6 +29,14 @@ function FlappyBird.__Module_Setup(layer_group, control, module_base_path, scrip
 	FlappyBird.g_Control = control
 	FlappyBird.g_LayerGroup = layer_group
 	FlappyBird.g_ModuleBasePath = module_base_path
+	if ALittle.System_GetPlatform() == "Windows" then
+		local deeplearning_path = "Module/ADeeplearning/"
+		package.cpath = package.cpath .. ";./" .. deeplearning_path .. "Other/?.dll"
+		local path = ALittle.File_GetCurrentPath()
+		ALittle.File_SetCurrentPath(path .. "/" .. deeplearning_path .. "Other")
+		require("deeplearning")
+		ALittle.File_SetCurrentPath(path)
+	end
 	Require(script_base_path, "GCenter")
 	FlappyBird.g_GCenter:Setup()
 end

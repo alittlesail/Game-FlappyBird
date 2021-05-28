@@ -38,6 +38,17 @@ public async static __Module_Setup(ALittle.DisplayLayout layer_group, ALittle.Co
 	g_Control = control;
 	g_LayerGroup = layer_group;
 	g_ModuleBasePath = module_base_path;
+
+	[Language(Lua)]
+	if (ALittle.System_GetPlatform() == "Windows")
+	{
+        var deeplearning_path = "Module/ADeeplearning/";
+		package.cpath = package.cpath..";./"..deeplearning_path.."Other/?.dll";
+        var path = ALittle.File_GetCurrentPath();
+        ALittle.File_SetCurrentPath(path.."/"..deeplearning_path.."Other");
+        lua.require("deeplearning");
+        ALittle.File_SetCurrentPath(path);
+    }
     
 	alittle.Require(script_base_path, "GCenter");
 	g_GCenter.Setup();
