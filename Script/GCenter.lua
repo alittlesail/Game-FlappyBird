@@ -33,6 +33,19 @@ function FlappyBird.GCenter:Setup()
 	self._main_menu = FlappyBird.g_Control:CreateControl("main_menu", self, nil)
 	self._dialog_layer:AddChild(self._main_menu, nil)
 	self._main_menu.visible = true
+	do
+		local y_value = self._bird_image.y_value
+		local min_y_value = y_value - 10
+		local max_y_value = y_value + 10
+		self._bird_image_loop = ALittle.LoopList()
+		self._bird_image_loop:AddUpdater(ALittle.LoopLinear(self._bird_image, "y_value", min_y_value, 1000, 0))
+		local linear_list = ALittle.LoopList()
+		linear_list:AddUpdater(ALittle.LoopLinear(self._bird_image, "y_value", max_y_value, 2000, 0))
+		linear_list:AddUpdater(ALittle.LoopLinear(self._bird_image, "y_value", min_y_value, 2000, 0))
+		linear_list._user_data = linear_list
+		self._bird_image_loop:AddUpdater(ALittle.LoopRepeat(linear_list, -1))
+		self._bird_image_loop:Start()
+	end
 	self._game_over.visible = false
 	self._game_title.visible = true
 	self._max_score_text._user_data = FlappyBird.g_GConfig:GetConfig("max_score", 0)
@@ -275,6 +288,7 @@ end
 function FlappyBird.GCenter:Shutdown()
 	self._bird:Stop()
 	self._frame_anti:Stop()
+	self._bird_image_loop:Stop()
 	if self._dqn_model ~= nil then
 		self._dqn_model:Save(FlappyBird.g_ModuleBasePath .. "/Other/flappybird.model")
 		self._dqn_model = nil

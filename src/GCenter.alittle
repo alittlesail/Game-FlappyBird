@@ -12,7 +12,10 @@ class GCenter
     private ALittle.DisplayLayout _main_layer;
     private ALittle.DisplayLayout _dialog_layer;
     private ALittle.DisplayObject _main_scene;
-    
+
+    private ALittle.ImagePlay _bird_image;
+    private ALittle.LoopList _bird_image_loop;
+
     private ALittle.Text _max_score_text;
     private ALittle.DisplayLayout _main_menu;
     private ALittle.DisplayObject _game_over;
@@ -33,6 +36,7 @@ class GCenter
     private ALittle.DisplayObject _ground;
     private ALittle.DisplayObject _bg;
     private bool _flying;
+    private ALittle.LoopObject _flying_loop;
     private bool _dieing;
 
     [Language(Lua)]
@@ -70,7 +74,23 @@ class GCenter
         this._main_menu = g_Control.CreateControl{ALittle.DisplayLayout}("main_menu", this, null);
         this._dialog_layer.AddChild(this._main_menu, null);
         this._main_menu.visible = true;
-        
+
+        {
+            var y_value = this._bird_image.y_value;
+            var min_y_value = y_value - 10;
+            var max_y_value = y_value + 10;
+
+            this._bird_image_loop = new ALittle.LoopList();
+            this._bird_image_loop.AddUpdater(new ALittle.LoopLinear(this._bird_image, "y_value", min_y_value, 1000, 0));
+            var linear_list = new ALittle.LoopList();
+            linear_list.AddUpdater(new ALittle.LoopLinear(this._bird_image, "y_value", max_y_value, 2000, 0));
+            linear_list.AddUpdater(new ALittle.LoopLinear(this._bird_image, "y_value", min_y_value, 2000, 0));
+            linear_list._user_data = linear_list;
+            this._bird_image_loop.AddUpdater(new ALittle.LoopRepeat(linear_list, -1));
+
+            this._bird_image_loop.Start();
+        }
+                
         this._game_over.visible = false;
         this._game_title.visible = true;
 
@@ -408,6 +428,7 @@ class GCenter
     {
         this._bird.Stop();
         this._frame_anti.Stop();
+        this._bird_image_loop.Stop();
 
         if (this._dqn_model != null)
         {
