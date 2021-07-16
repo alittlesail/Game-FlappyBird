@@ -9,35 +9,46 @@ protected var g_GConfig:ALittle.IJsonConfig;
 
 class GCenter
 {
+    // 层
     private ALittle.DisplayLayout _main_layer;
     private ALittle.DisplayLayout _dialog_layer;
-    private ALittle.DisplayObject _main_scene;
 
-    private ALittle.ImagePlay _bird_image;
-    private ALittle.LoopList _bird_image_loop;
-
-    private ALittle.Text _max_score_text;
+    // 主菜单界面
     private ALittle.DisplayLayout _main_menu;
     private ALittle.DisplayObject _game_over;
     private ALittle.DisplayObject _game_title;
-    private ALittle.ImagePlay _bird;
+    private ALittle.ImagePlay _bird_image;
+    private ALittle.LoopList _bird_image_loop;
+
+    // 游戏界面
+    private ALittle.DisplayObject _main_scene;
+    
+    // 新手提示
     private ALittle.DisplayObject _tip_1;
     private ALittle.DisplayObject _tip_2;
-    
+
+    // 分数
+    private ALittle.Text _max_score_text;
     private ALittle.Text _score_text;
     
+    // 水管
     private ALittle.DisplayLayout _pipe_container;
     private int _next_pipe_gap;
     private int _next_pipe_up;
 
+    // 鸟
+    private ALittle.ImagePlay _bird;
     private ALittle.LoopFrame _frame_anti;
 
+    // 地板
     private int _ground_frame_acc;
     private ALittle.DisplayObject _ground;
     private ALittle.DisplayObject _bg;
-    private bool _flying;
-    private ALittle.LoopObject _flying_loop;
-    private bool _dieing;
+
+    private double _fly_a = 20;
+    private double _fly_power = 5;
+    private bool _dieing = false;
+    private double _fly_y_rate = 0;
 
     [Language(Lua)]
     private deeplearning.DeeplearningDQNModel _dqn_model;
@@ -67,14 +78,16 @@ class GCenter
         this._dialog_layer.height_type = ALittle.UIEnumTypes.SIZE_MARGIN;
         g_LayerGroup.AddChild(this._dialog_layer, null);
     
-        // 创建主界面
+        // 创建游戏界面
         this._main_scene = g_Control.CreateControl{ALittle.DisplayObject}("main_scene", this, this._main_layer);
         this._main_scene.visible = false;
 
+        // 创建主菜单界面
         this._main_menu = g_Control.CreateControl{ALittle.DisplayLayout}("main_menu", this, null);
         this._dialog_layer.AddChild(this._main_menu, null);
         this._main_menu.visible = true;
 
+        // 创建主菜单界面鸟的动画
         {
             var y_value = this._bird_image.y_value;
             var min_y_value = y_value - 10;
@@ -90,13 +103,15 @@ class GCenter
 
             this._bird_image_loop.Start();
         }
-                
+
         this._game_over.visible = false;
         this._game_title.visible = true;
 
+        // 游戏界面分数计算
         this._max_score_text._user_data = g_GConfig.GetConfig("max_score", 0);        
         this._max_score_text.text = this._max_score_text._user_data;
         
+        // 帧动画
         this._frame_anti = new ALittle.LoopFrame(bind(this.LoopGroundFrame, this));
 
         if (deeplearning.DeeplearningDQNModel != null)
@@ -111,14 +126,14 @@ class GCenter
         this._ground_frame_acc = 0;
         this._next_pipe_gap = 0;
         this._next_pipe_up = 50;
-        this._flying = false;
-        this._dieing = false;
         this._bird.y = this._bg.height / 2;
-        this._bird.x = 0;
+        this._bird.x = this._bird.width;
         this._bird.angle = 0;
         this._bird.visible = true;
         this._bird.Play();
         this._game_over.visible = false;
+        this._dieing = false;
+        this._fly_y_rate = 0;
         
         // 分数清0
         this._score_text.text = "0";
@@ -222,8 +237,10 @@ class GCenter
         // 和地板距离越近越危险
         if (!has_pip)
         {
-            var distance = ALittle.Math_Abs(this._bird.y + this._bird.height / 2 - this._ground.y / 2);
-            reward = (A_UISystem.view_height - distance) / A_UISystem.view_height;
+            var distance = ALittle.Math_Abs(this._bird.y - this._ground.y / 2);
+            reward = (1 - distance / (this._ground.y / 2)) * 10;
+
+            ALittle.Log(reward);
         }
 
         return reward;
@@ -231,7 +248,8 @@ class GCenter
 
     public fun LoopGroundFrame(int frame_time)
     {
-        var scale = 20;
+        var y_delta_time = frame_time / 1000;
+        var x_delta_time = frame_time / 20;
 
         var state:List<double>;
         var action = 0;
@@ -239,27 +257,28 @@ class GCenter
         {
             state = this.CalcState();
             action = this._dqn_model.ChooseAction(state, 9);
-            this._flying = action != 0;
         }
 
         if (!this._dieing)
         {
+            if (action != 0) this._fly_y_rate = -this._fly_power;
+        
             var cur_score = cast<int>(this._score_text._user_data) + frame_time;
             this._score_text._user_data = cur_score;
             this._score_text.text = ALittle.Math_Floor(cur_score / 100);
         }
 
         // 处理地板
-        var total_time = (this._ground.width - this._main_scene.width) * scale;
+        var total_time = (this._ground.width - this._main_scene.width) * 20;
         this._ground_frame_acc += frame_time;
         if (this._ground_frame_acc > total_time)
             this._ground_frame_acc = cast<int>((this._ground_frame_acc % total_time));
-        this._ground.x = - this._ground_frame_acc /  scale;
+        this._ground.x = - this._ground_frame_acc /  20;
         
         // 如果鸟没有到中间，那么就往前飞
-        if (this._bird.x + this._bird.width / 2 < this._bg.width / 2)
+        if (this._bird.x < this._bg.width / 2)
         {
-            this._bird.x = this._bird.x + (frame_time / scale);
+            this._bird.x = this._bird.x + x_delta_time;
         }
         else
         {
@@ -320,27 +339,38 @@ class GCenter
             // 全部向左移动
             for (var index, child in this._pipe_container.childs)
             {
-                child.x = child.x - (frame_time / scale);
+                child.x = child.x - x_delta_time;
             }
         }
+
+        // 计算速度
+        this._fly_y_rate = this._fly_a * y_delta_time + this._fly_y_rate;
+
+        // 根据速度来设置角度
+        if (this._fly_y_rate < 0)
+        {
+            var rate = 1.0;
+            if (-this._fly_y_rate < this._fly_power) rate = -this._fly_y_rate / this._fly_power;
+            this._bird.angle = - 45 * rate;
+        }
+        else
+        {
+            var rate = 1.0;
+            if (this._fly_y_rate < this._fly_power) rate = this._fly_y_rate / this._fly_power;
+            this._bird.angle = 45 * rate;
+        }
+
+        // 鸟向下掉
+        this._bird.y = this._bird.y + this._fly_y_rate;
 
         if (this._dieing)
         {
             // 已经死亡，那么就往下掉
-            this._bird.y = this._bird.y + (frame_time / scale) * 2;
             if (this._bird.y <= 0 || this._bird.y + this._bird.height >= this._bg.height - this._ground.height)
-            {
                 this.ShowGameOver();
-            }
         }
         else
         {
-            // 鸟往下掉
-            if (this._flying)
-                this._bird.y = this._bird.y - (frame_time / scale) * 2;
-            else
-                this._bird.y = this._bird.y + (frame_time / scale) * 1.5;
-
             // 判断死亡
             for (var index, child in this._pipe_container.childs)
             {
@@ -361,10 +391,9 @@ class GCenter
 
             if (this._dieing)
             {
-                this._bird.angle = -60;
+                this._bird.angle = 90;
                 this._bird.Stop();
-
-                this.HandleStartClick(null);
+                if (this._dqn_model != null) this.HandleStartClick(null);
             }
 
             if (this._dqn_model != null && this._dieing == false)
@@ -390,12 +419,12 @@ class GCenter
     {
         this._tip_1.visible = false;
         this._tip_2.visible = false;
-        this._flying = true;
+
+        if (this._dqn_model == null) this._fly_y_rate = -this._fly_power;
     }
     
     public fun HandleLButtonUp(ALittle.UILButtonUpEvent event)
     {
-        this._flying = false;
     }
     
     public fun ShowGameOver()
