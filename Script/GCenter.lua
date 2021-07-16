@@ -56,7 +56,7 @@ function FlappyBird.GCenter:Setup()
 	self._max_score_text.text = self._max_score_text._user_data
 	self._frame_anti = ALittle.LoopFrame(Lua.Bind(self.LoopGroundFrame, self))
 	if deeplearning.DeeplearningDQNModel ~= nil then
-		self._dqn_model = deeplearning.DeeplearningDQNModel(4, 2, 100, 2000)
+		self._dqn_model = deeplearning.DeeplearningDQNModel(5, 2, 100, 2000)
 		self._dqn_model:Load(FlappyBird.g_ModuleBasePath .. "/Other/flappybird.model")
 	end
 end
@@ -81,11 +81,12 @@ end
 
 function FlappyBird.GCenter:CalcState()
 	local state = {}
-	state[1] = self._bird.x + self._bird.width / 2
-	state[2] = self._bird.y + self._bird.height / 2
-	state[3] = 0
-	state[4] = 0
-	local index = 3
+	state[1] = self._bird.x
+	state[2] = self._bird.y
+	state[3] = self._fly_y_rate
+	state[4] = self._bird.x
+	state[5] = self._ground.y / 2
+	local index = 4
 	for i, child in ___ipairs(self._pipe_container.childs) do
 		if child.x + child.width >= self._bird.x then
 			if child._user_data == true then
@@ -99,7 +100,7 @@ function FlappyBird.GCenter:CalcState()
 				state[index] = child.y - self._bird.height / 2 - self._dqn_range
 				index = index + (1)
 			end
-			if index >= 4 then
+			if index >= 5 then
 				break
 			end
 		end
@@ -110,43 +111,34 @@ end
 function FlappyBird.GCenter:CalcReward()
 	local has_pip = false
 	local reward = 0.0
-	local rate = 2.0
+	local src_x = self._bird.x
+	local src_y = self._bird.y
+	local dst_x = src_x
+	local dst_y = self._ground.y / 2
 	for i, child in ___ipairs(self._pipe_container.childs) do
-		local src_x = self._bird.x + self._bird.width / 2
-		local src_y = self._bird.y + self._bird.height / 2
-		local dst_x = child.x + child.width / 2
-		local dst_y = src_y
+		dst_x = child.x + child.width / 2
 		if child._user_data == true then
 			dst_y = child.y + child.height + self._bird.height / 2 + self._dqn_range
 		else
 			dst_y = child.y - self._bird.height / 2 - self._dqn_range
 		end
 		if self._bird.x + self._bird.width / 2 < child.x + child.width / 2 then
-			local distance = ALittle.Math_Sqrt((src_x - dst_x) * (src_x - dst_x) + (src_y - dst_y) * (src_y - dst_y))
-			reward = (A_UISystem.view_height - distance) / A_UISystem.view_height
-			if child._user_data == true then
-				if dst_y > src_y then
-					reward = -distance / A_UISystem.view_height
-				end
-			else
-				if dst_y < src_y then
-					reward = -distance / A_UISystem.view_height
-				end
-			end
-			has_pip = true
 			break
-		elseif self._bird.x < child.x + child.width then
-			local distance = ALittle.Math_Abs(src_y - dst_y)
-			reward = (A_UISystem.view_height - distance) / A_UISystem.view_height
-			has_pip = true
+		elseif self._bird.x - self._bird.width / 2 < child.x + child.width then
 			break
 		end
 	end
-	if not has_pip then
-		local distance = ALittle.Math_Abs(self._bird.y - self._ground.y / 2)
-		reward = (1 - distance / (self._ground.y / 2)) * 10
-		ALittle.Log(reward)
+	reward = 0
+	do
+		local distance = ALittle.Math_Sqrt((src_x - dst_x) * (src_x - dst_x) + (src_y - dst_y) * (src_y - dst_y))
+		local total = A_UISystem.view_width + A_UISystem.view_width
 	end
+	do
+		local center_y = self._ground.y / 2
+		local distance = ALittle.Math_Abs(src_y - center_y)
+		reward = reward + (((src_y - center_y) / center_y) * (-self._fly_y_rate) * 100)
+	end
+	self._reward_text.text = reward
 	return reward
 end
 
@@ -190,6 +182,7 @@ function FlappyBird.GCenter:LoopGroundFrame(frame_time)
 				self._pipe_container:RemoveChild(pipe)
 			end
 		end
+		create_pipe = false
 		if create_pipe then
 			local pipe = FlappyBird.g_Control:CreateControl("pipe")
 			self._pipe_container:AddChild(pipe)
@@ -231,7 +224,7 @@ function FlappyBird.GCenter:LoopGroundFrame(frame_time)
 	end
 	self._bird.y = self._bird.y + self._fly_y_rate
 	if self._dieing then
-		if self._bird.y <= 0 or self._bird.y + self._bird.height >= self._bg.height - self._ground.height then
+		if self._bird.y <= 0 or self._bird.y + self._bird.height / 2 >= self._ground.y then
 			self:ShowGameOver()
 		end
 	else
@@ -245,7 +238,7 @@ function FlappyBird.GCenter:LoopGroundFrame(frame_time)
 				break
 			end
 		end
-		if self._bird.y <= 0 or self._bird.y + self._bird.height >= self._bg.height - self._ground.height then
+		if self._bird.y <= 0 or self._bird.y + self._bird.height / 2 >= self._ground.y then
 			self._dieing = true
 		end
 		if self._dieing then

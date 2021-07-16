@@ -54,6 +54,7 @@ class GCenter
     private deeplearning.DeeplearningDQNModel _dqn_model;
 
     private double _dqn_range = 50;
+    private ALittle.DisplayObject _reward_text;
 
     public ctor()
     {
@@ -116,7 +117,7 @@ class GCenter
 
         if (deeplearning.DeeplearningDQNModel != null)
         {
-            this._dqn_model = new deeplearning.DeeplearningDQNModel(4, 2, 100, 2000);
+            this._dqn_model = new deeplearning.DeeplearningDQNModel(5, 2, 100, 2000);
             this._dqn_model.Load(g_ModuleBasePath.."/Other/flappybird.model");
         }
     }
@@ -148,16 +149,18 @@ class GCenter
     private fun CalcState() : List<double>
     {
         var state = new List<double>();
-        state[1] = this._bird.x + this._bird.width / 2;
-        state[2] = this._bird.y + this._bird.height / 2;
-        state[3] = 0;
-        state[4] = 0;
+        state[1] = this._bird.x;
+        state[2] = this._bird.y;
+        state[3] = this._fly_y_rate;
+        state[4] = this._bird.x;
+        state[5] = this._ground.y / 2;
 
-        var index = 3;
+        var index = 4;
         for (var i, child in this._pipe_container.childs)
         {
             if (child.x + child.width >= this._bird.x)
             {
+                // 上面的水管
                 if (child._user_data == true)
                 {
                     state[index] = child.x + child.width / 2;
@@ -173,7 +176,7 @@ class GCenter
                     index += 1;
                 }
 
-                if (index >= 4) break;
+                if (index >= 5) break;
             }
         }
 
@@ -185,17 +188,18 @@ class GCenter
         var has_pip = false;
         var reward = 0.0;
 
-        var rate = 2.0;
+        // 当前位置
+        var src_x = this._bird.x;
+        var src_y = this._bird.y;
+
+        var dst_x = src_x;
+        var dst_y = this._ground.y / 2;
+
         for (var i, child in this._pipe_container.childs)
         {
-            // 当前位置
-            var src_x = this._bird.x + this._bird.width / 2;
-            var src_y = this._bird.y + this._bird.height / 2;
-
-            var dst_x = child.x + child.width / 2;
-            var dst_y = src_y;
-
-            // 上面的水管和下面的水管
+            dst_x = child.x + child.width / 2;
+            
+            // 上面的水管
             if (child._user_data == true)
                 dst_y = child.y + child.height + this._bird.height / 2 + this._dqn_range;
             else
@@ -204,45 +208,31 @@ class GCenter
             // 还没到目标点
             if (this._bird.x + this._bird.width / 2 < child.x + child.width / 2)
             {
-                // 距离越短，分数越高
-                var distance = ALittle.Math_Sqrt((src_x - dst_x) * (src_x - dst_x) + (src_y - dst_y) * (src_y - dst_y));
-                reward = (A_UISystem.view_height - distance) / A_UISystem.view_height;
-
-                if (child._user_data == true)
-                {
-                    if (dst_y > src_y) reward = - distance / A_UISystem.view_height;
-                }
-                else
-                {
-                    if (dst_y < src_y) reward = - distance / A_UISystem.view_height;
-                }
-
-                has_pip = true;
-
                 break;
             }
-                // 水管还没走完
-            elseif (this._bird.x < child.x + child.width)
+            // 水管还没走完
+            elseif (this._bird.x - this._bird.width / 2 < child.x + child.width)
             {
-                // 距离越短，分数越高
-                var distance = ALittle.Math_Abs(src_y - dst_y);
-                reward = (A_UISystem.view_height - distance) / A_UISystem.view_height;
-
-                has_pip = true;
-
                 break;
             }
         }
 
-        // 和地板距离越近越危险
-        if (!has_pip)
+        reward = 0;
+        // 距离目标越短，分数越高
         {
-            var distance = ALittle.Math_Abs(this._bird.y - this._ground.y / 2);
-            reward = (1 - distance / (this._ground.y / 2)) * 10;
-
-            ALittle.Log(reward);
+            var distance = ALittle.Math_Sqrt((src_x - dst_x) * (src_x - dst_x) + (src_y - dst_y) * (src_y - dst_y));
+            var total = A_UISystem.view_width + A_UISystem.view_width;
+            // reward += (total - distance) / total * 1000;
         }
 
+        // 距离边缘越近，速度越快，分数越低
+        {
+            var center_y = this._ground.y / 2;
+            var distance = ALittle.Math_Abs(src_y - center_y);
+            reward += ((src_y - center_y) / center_y) * (-this._fly_y_rate) * 100;
+        }
+
+        this._reward_text.text = reward;
         return reward;
     }
 
@@ -302,6 +292,7 @@ class GCenter
                     this._pipe_container.RemoveChild(pipe);
             }
 
+            create_pipe = false;
             if (create_pipe)
             {
                 var pipe = g_Control.CreateControl{ALittle.DisplayObject}("pipe");
@@ -366,7 +357,7 @@ class GCenter
         if (this._dieing)
         {
             // 已经死亡，那么就往下掉
-            if (this._bird.y <= 0 || this._bird.y + this._bird.height >= this._bg.height - this._ground.height)
+            if (this._bird.y <= 0 || this._bird.y + this._bird.height / 2 >= this._ground.y)
                 this.ShowGameOver();
         }
         else
@@ -386,7 +377,7 @@ class GCenter
                 }
             }
 
-            if (this._bird.y <= 0 || this._bird.y + this._bird.height >= this._bg.height - this._ground.height)
+            if (this._bird.y <= 0 || this._bird.y + this._bird.height / 2 >= this._ground.y)
                 this._dieing = true;
 
             if (this._dieing)
