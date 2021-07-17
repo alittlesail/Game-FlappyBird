@@ -53,7 +53,7 @@ class GCenter
     [Language(Lua)]
     private deeplearning.DeeplearningDQNModel _dqn_model;
 
-    private double _dqn_range = 50;
+    private double _dqn_range = 2;
     private ALittle.DisplayObject _reward_text;
 
     public ctor()
@@ -117,8 +117,8 @@ class GCenter
 
         if (deeplearning.DeeplearningDQNModel != null)
         {
-            this._dqn_model = new deeplearning.DeeplearningDQNModel(5, 2, 100, 2000);
-            this._dqn_model.Load(g_ModuleBasePath.."/Other/flappybird.model");
+            // this._dqn_model = new deeplearning.DeeplearningDQNModel(5, 2, 100, 2000);
+            // this._dqn_model.Load(g_ModuleBasePath.."/Other/flappybird.model");
         }
     }
 
@@ -228,7 +228,6 @@ class GCenter
         // 距离边缘越近，速度越快，分数越低
         {
             var center_y = this._ground.y / 2;
-            var distance = ALittle.Math_Abs(src_y - center_y);
             reward += ((src_y - center_y) / center_y) * (-this._fly_y_rate) * 100;
         }
 
@@ -292,7 +291,7 @@ class GCenter
                     this._pipe_container.RemoveChild(pipe);
             }
 
-            create_pipe = false;
+            // create_pipe = false;
             if (create_pipe)
             {
                 var pipe = g_Control.CreateControl{ALittle.DisplayObject}("pipe");
@@ -336,28 +335,30 @@ class GCenter
 
         // 计算速度
         this._fly_y_rate = this._fly_a * y_delta_time + this._fly_y_rate;
-
-        // 根据速度来设置角度
-        if (this._fly_y_rate < 0)
-        {
-            var rate = 1.0;
-            if (-this._fly_y_rate < this._fly_power) rate = -this._fly_y_rate / this._fly_power;
-            this._bird.angle = - 45 * rate;
-        }
-        else
-        {
-            var rate = 1.0;
-            if (this._fly_y_rate < this._fly_power) rate = this._fly_y_rate / this._fly_power;
-            this._bird.angle = 45 * rate;
-        }
-
         // 鸟向下掉
         this._bird.y = this._bird.y + this._fly_y_rate;
+
+        // 根据速度来设置角度
+        if (this._dieing == false)
+        {
+            if (this._fly_y_rate < 0)
+            {
+                var rate = 1.0;
+                if (-this._fly_y_rate < this._fly_power) rate = -this._fly_y_rate / this._fly_power;
+                this._bird.angle = - 45 * rate;
+            }
+            else
+            {
+                var rate = 1.0;
+                if (this._fly_y_rate < this._fly_power) rate = this._fly_y_rate / this._fly_power;
+                this._bird.angle = 45 * rate;
+            }
+        }
 
         if (this._dieing)
         {
             // 已经死亡，那么就往下掉
-            if (this._bird.y <= 0 || this._bird.y + this._bird.height / 2 >= this._ground.y)
+            if (this._bird.y + this._bird.height / 2 >= this._ground.y)
                 this.ShowGameOver();
         }
         else
@@ -365,10 +366,10 @@ class GCenter
             // 判断死亡
             for (var index, child in this._pipe_container.childs)
             {
-                var left = this._bird.x + 5;
-                var right = this._bird.x + this._bird.width - 5;
-                var top = this._bird.y + 5;
-                var bottom = this._bird.y + this._bird.height - 5;
+                var left = this._bird.x - this._bird.width / 2;
+                var right = this._bird.x + this._bird.width / 2;
+                var top = this._bird.y - this._bird.height / 2;
+                var bottom = this._bird.y + this._bird.height / 2;
                 if ((left > child.x && left <= child.x + child.width || right > child.x && right <= child.x + child.width)
                     && (top > child.y && top <= child.y + child.height || bottom > child.y && bottom <= child.y + child.height))
                 {
@@ -411,7 +412,8 @@ class GCenter
         this._tip_1.visible = false;
         this._tip_2.visible = false;
 
-        if (this._dqn_model == null) this._fly_y_rate = -this._fly_power;
+        if (this._dqn_model == null && this._dieing == false)
+        	this._fly_y_rate = -this._fly_power;
     }
     
     public fun HandleLButtonUp(ALittle.UILButtonUpEvent event)

@@ -17,7 +17,7 @@ function FlappyBird.GCenter:Ctor()
 	___rawset(self, "_fly_power", 5)
 	___rawset(self, "_dieing", false)
 	___rawset(self, "_fly_y_rate", 0)
-	___rawset(self, "_dqn_range", 50)
+	___rawset(self, "_dqn_range", 2)
 end
 
 function FlappyBird.GCenter:Setup()
@@ -56,8 +56,6 @@ function FlappyBird.GCenter:Setup()
 	self._max_score_text.text = self._max_score_text._user_data
 	self._frame_anti = ALittle.LoopFrame(Lua.Bind(self.LoopGroundFrame, self))
 	if deeplearning.DeeplearningDQNModel ~= nil then
-		self._dqn_model = deeplearning.DeeplearningDQNModel(5, 2, 100, 2000)
-		self._dqn_model:Load(FlappyBird.g_ModuleBasePath .. "/Other/flappybird.model")
 	end
 end
 
@@ -135,7 +133,6 @@ function FlappyBird.GCenter:CalcReward()
 	end
 	do
 		local center_y = self._ground.y / 2
-		local distance = ALittle.Math_Abs(src_y - center_y)
 		reward = reward + (((src_y - center_y) / center_y) * (-self._fly_y_rate) * 100)
 	end
 	self._reward_text.text = reward
@@ -182,7 +179,6 @@ function FlappyBird.GCenter:LoopGroundFrame(frame_time)
 				self._pipe_container:RemoveChild(pipe)
 			end
 		end
-		create_pipe = false
 		if create_pipe then
 			local pipe = FlappyBird.g_Control:CreateControl("pipe")
 			self._pipe_container:AddChild(pipe)
@@ -209,30 +205,32 @@ function FlappyBird.GCenter:LoopGroundFrame(frame_time)
 		end
 	end
 	self._fly_y_rate = self._fly_a * y_delta_time + self._fly_y_rate
-	if self._fly_y_rate < 0 then
-		local rate = 1.0
-		if -self._fly_y_rate < self._fly_power then
-			rate = -self._fly_y_rate / self._fly_power
-		end
-		self._bird.angle = -45 * rate
-	else
-		local rate = 1.0
-		if self._fly_y_rate < self._fly_power then
-			rate = self._fly_y_rate / self._fly_power
-		end
-		self._bird.angle = 45 * rate
-	end
 	self._bird.y = self._bird.y + self._fly_y_rate
+	if self._dieing == false then
+		if self._fly_y_rate < 0 then
+			local rate = 1.0
+			if -self._fly_y_rate < self._fly_power then
+				rate = -self._fly_y_rate / self._fly_power
+			end
+			self._bird.angle = -45 * rate
+		else
+			local rate = 1.0
+			if self._fly_y_rate < self._fly_power then
+				rate = self._fly_y_rate / self._fly_power
+			end
+			self._bird.angle = 45 * rate
+		end
+	end
 	if self._dieing then
-		if self._bird.y <= 0 or self._bird.y + self._bird.height / 2 >= self._ground.y then
+		if self._bird.y + self._bird.height / 2 >= self._ground.y then
 			self:ShowGameOver()
 		end
 	else
 		for index, child in ___ipairs(self._pipe_container.childs) do
-			local left = self._bird.x + 5
-			local right = self._bird.x + self._bird.width - 5
-			local top = self._bird.y + 5
-			local bottom = self._bird.y + self._bird.height - 5
+			local left = self._bird.x - self._bird.width / 2
+			local right = self._bird.x + self._bird.width / 2
+			local top = self._bird.y - self._bird.height / 2
+			local bottom = self._bird.y + self._bird.height / 2
 			if (left > child.x and left <= child.x + child.width or right > child.x and right <= child.x + child.width) and (top > child.y and top <= child.y + child.height or bottom > child.y and bottom <= child.y + child.height) then
 				self._dieing = true
 				break
@@ -271,7 +269,7 @@ end
 function FlappyBird.GCenter:HandleLButtonDown(event)
 	self._tip_1.visible = false
 	self._tip_2.visible = false
-	if self._dqn_model == nil then
+	if self._dqn_model == nil and self._dieing == false then
 		self._fly_y_rate = -self._fly_power
 	end
 end
