@@ -53,8 +53,10 @@ class GCenter
     [Language(Lua)]
     private deeplearning.DeeplearningDQNModel _dqn_model;
 
-    private double _dqn_range = 2;
+    private double _dqn_range = 30;
     private ALittle.DisplayObject _reward_text;
+    private ALittle.DisplayObject _target_x_text;
+    private ALittle.DisplayObject _target_y_text;
 
     public ctor()
     {
@@ -117,8 +119,11 @@ class GCenter
 
         if (deeplearning.DeeplearningDQNModel != null)
         {
-            // this._dqn_model = new deeplearning.DeeplearningDQNModel(5, 2, 100, 2000);
-            // this._dqn_model.Load(g_ModuleBasePath.."/Other/flappybird.model");
+            this._dqn_model = new deeplearning.DeeplearningDQNModel(3, 2, 100, 2000);
+            this._dqn_model.Load(g_ModuleBasePath.."/Other/flappybird.model");
+
+            this._tip_1.visible = false;
+            this._tip_2.visible = false;
         }
     }
 
@@ -148,97 +153,111 @@ class GCenter
 
     private fun CalcState() : List<double>
     {
-        var state = new List<double>();
-        state[1] = this._bird.x;
-        state[2] = this._bird.y;
-        state[3] = this._fly_y_rate;
-        state[4] = this._bird.x;
-        state[5] = this._ground.y / 2;
+        var dst_x, start_y, end_y = this.CalcRange();
+        var dst_y = (end_y - start_y) / 2 + start_y;
 
-        var index = 4;
+        var state = new List<double>();
+        state[1] = dst_x - this._bird.x;
+        state[2] = dst_y - this._bird.y;
+        state[3] = this._fly_y_rate;
+    
+        return state;
+    }
+
+    private fun CalcRange() : double, double, double
+    {
+        var dst_x = this._bird.x;
+        var start_y = 0.0;
+        var end_y = this._ground.y;
+
         for (var i, child in this._pipe_container.childs)
         {
-            if (child.x + child.width >= this._bird.x)
+            if (child.x + child.width >= this._bird.x - this._bird.width / 2)
             {
                 // 上面的水管
                 if (child._user_data == true)
                 {
-                    state[index] = child.x + child.width / 2;
-                    index += 1;
-                    state[index] = child.y + child.height + this._bird.height / 2 + this._dqn_range;
-                    index += 1;
+                    dst_x = child.x + child.width / 2;
+                    start_y = child.y + child.height + this._bird.height / 2 + this._dqn_range;
+                    end_y = this._ground.y;
                 }
                 else
                 {
-                    state[index] = child.x + child.width / 2;
-                    index += 1;
-                    state[index] = child.y - this._bird.height / 2 - this._dqn_range;
-                    index += 1;
+                    dst_x = child.x + child.width / 2;
+                    start_y = 0;
+                    end_y = child.y - this._bird.height / 2 - this._dqn_range;
                 }
 
-                if (index >= 5) break;
+                break;
             }
         }
 
-        return state;
+        return dst_x, start_y, end_y;
     }
 
-    private fun CalcReward() : double
+    private fun CalcReward(bool die, bool change_pipe) : double
     {
-        var has_pip = false;
-        var reward = 0.0;
+        if (die) return -10000;
+        if (change_pipe) return 100;
 
         // 当前位置
         var src_x = this._bird.x;
         var src_y = this._bird.y;
 
-        var dst_x = src_x;
-        var dst_y = this._ground.y / 2;
-
-        for (var i, child in this._pipe_container.childs)
-        {
-            dst_x = child.x + child.width / 2;
-            
-            // 上面的水管
-            if (child._user_data == true)
-                dst_y = child.y + child.height + this._bird.height / 2 + this._dqn_range;
-            else
-                dst_y = child.y - this._bird.height / 2 - this._dqn_range;
-
-            // 还没到目标点
-            if (this._bird.x + this._bird.width / 2 < child.x + child.width / 2)
-            {
-                break;
-            }
-            // 水管还没走完
-            elseif (this._bird.x - this._bird.width / 2 < child.x + child.width)
-            {
-                break;
-            }
-        }
-
-        reward = 0;
-        // 距离目标越短，分数越高
-        {
-            var distance = ALittle.Math_Sqrt((src_x - dst_x) * (src_x - dst_x) + (src_y - dst_y) * (src_y - dst_y));
-            var total = A_UISystem.view_width + A_UISystem.view_width;
-            // reward += (total - distance) / total * 1000;
-        }
+        var dst_x, start_y, end_y = this.CalcRange();
+        var reward = 0.0;
 
         // 距离边缘越近，速度越快，分数越低
         {
-            var center_y = this._ground.y / 2;
-            reward += ((src_y - center_y) / center_y) * (-this._fly_y_rate) * 100;
+            var max = 100;
+            var total_y = end_y - start_y;
+            var center_y = total_y / 2 + start_y;
+
+            if (src_y > center_y)
+            {
+                var k = max / (center_y - end_y);
+                var b = - end_y * k;
+
+                reward += k * src_y + b;
+            }
+            else
+            {
+                var k = max / (center_y - start_y);
+                var b = - start_y * k;
+
+                reward += k * src_y + b;
+            }
+
+            this._reward_text.text = reward;
+            this._target_x_text.text = start_y;
+            this._target_y_text.text = end_y;
+        
         }
 
-        this._reward_text.text = reward;
         return reward;
+    }
+
+    private fun CalcPipe() : ALittle.DisplayObject
+    {
+        for (var i, child in this._pipe_container.childs)
+        {
+            if (child.x + child.width >= this._bird.x - this._bird.width / 2)
+            {
+                return child;
+            }
+        }
+
+        return null;
     }
 
     public fun LoopGroundFrame(int frame_time)
     {
         var y_delta_time = frame_time / 1000;
         var x_delta_time = frame_time / 20;
+
+        var old_dieing = this._dieing;
+
+        var old_pipe = this.CalcPipe();
 
         var state:List<double>;
         var action = 0;
@@ -355,6 +374,8 @@ class GCenter
             }
         }
 
+        var new_pipe = this.CalcPipe();
+
         if (this._dieing)
         {
             // 已经死亡，那么就往下掉
@@ -388,9 +409,9 @@ class GCenter
                 if (this._dqn_model != null) this.HandleStartClick(null);
             }
 
-            if (this._dqn_model != null && this._dieing == false)
+            if (this._dqn_model != null && (this._dieing == false || old_dieing == false))
             {
-                var reward = this.CalcReward();
+                var reward = this.CalcReward(this._dieing, old_pipe != new_pipe);
                 var next_state = this.CalcState();
                 this._dqn_model.SaveTransition(state, action, reward, next_state);
                 for (var i = 1; i <= 32; 1)

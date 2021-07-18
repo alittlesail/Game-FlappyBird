@@ -17,7 +17,7 @@ function FlappyBird.GCenter:Ctor()
 	___rawset(self, "_fly_power", 5)
 	___rawset(self, "_dieing", false)
 	___rawset(self, "_fly_y_rate", 0)
-	___rawset(self, "_dqn_range", 2)
+	___rawset(self, "_dqn_range", 30)
 end
 
 function FlappyBird.GCenter:Setup()
@@ -56,6 +56,10 @@ function FlappyBird.GCenter:Setup()
 	self._max_score_text.text = self._max_score_text._user_data
 	self._frame_anti = ALittle.LoopFrame(Lua.Bind(self.LoopGroundFrame, self))
 	if deeplearning.DeeplearningDQNModel ~= nil then
+		self._dqn_model = deeplearning.DeeplearningDQNModel(3, 2, 100, 2000)
+		self._dqn_model:Load(FlappyBird.g_ModuleBasePath .. "/Other/flappybird.model")
+		self._tip_1.visible = false
+		self._tip_2.visible = false
 	end
 end
 
@@ -78,70 +82,81 @@ function FlappyBird.GCenter:Restart()
 end
 
 function FlappyBird.GCenter:CalcState()
+	local dst_x, start_y, end_y = self:CalcRange()
+	local dst_y = (end_y - start_y) / 2 + start_y
 	local state = {}
-	state[1] = self._bird.x
-	state[2] = self._bird.y
+	state[1] = dst_x - self._bird.x
+	state[2] = dst_y - self._bird.y
 	state[3] = self._fly_y_rate
-	state[4] = self._bird.x
-	state[5] = self._ground.y / 2
-	local index = 4
-	for i, child in ___ipairs(self._pipe_container.childs) do
-		if child.x + child.width >= self._bird.x then
-			if child._user_data == true then
-				state[index] = child.x + child.width / 2
-				index = index + (1)
-				state[index] = child.y + child.height + self._bird.height / 2 + self._dqn_range
-				index = index + (1)
-			else
-				state[index] = child.x + child.width / 2
-				index = index + (1)
-				state[index] = child.y - self._bird.height / 2 - self._dqn_range
-				index = index + (1)
-			end
-			if index >= 5 then
-				break
-			end
-		end
-	end
 	return state
 end
 
-function FlappyBird.GCenter:CalcReward()
-	local has_pip = false
-	local reward = 0.0
+function FlappyBird.GCenter:CalcRange()
+	local dst_x = self._bird.x
+	local start_y = 0.0
+	local end_y = self._ground.y
+	for i, child in ___ipairs(self._pipe_container.childs) do
+		if child.x + child.width >= self._bird.x - self._bird.width / 2 then
+			if child._user_data == true then
+				dst_x = child.x + child.width / 2
+				start_y = child.y + child.height + self._bird.height / 2 + self._dqn_range
+				end_y = self._ground.y
+			else
+				dst_x = child.x + child.width / 2
+				start_y = 0
+				end_y = child.y - self._bird.height / 2 - self._dqn_range
+			end
+			break
+		end
+	end
+	return dst_x, start_y, end_y
+end
+
+function FlappyBird.GCenter:CalcReward(die, change_pipe)
+	if die then
+		return -10000
+	end
+	if change_pipe then
+		return 100
+	end
 	local src_x = self._bird.x
 	local src_y = self._bird.y
-	local dst_x = src_x
-	local dst_y = self._ground.y / 2
-	for i, child in ___ipairs(self._pipe_container.childs) do
-		dst_x = child.x + child.width / 2
-		if child._user_data == true then
-			dst_y = child.y + child.height + self._bird.height / 2 + self._dqn_range
+	local dst_x, start_y, end_y = self:CalcRange()
+	local reward = 0.0
+	do
+		local max = 100
+		local total_y = end_y - start_y
+		local center_y = total_y / 2 + start_y
+		if src_y > center_y then
+			local k = max / (center_y - end_y)
+			local b = -end_y * k
+			reward = reward + (k * src_y + b)
 		else
-			dst_y = child.y - self._bird.height / 2 - self._dqn_range
+			local k = max / (center_y - start_y)
+			local b = -start_y * k
+			reward = reward + (k * src_y + b)
 		end
-		if self._bird.x + self._bird.width / 2 < child.x + child.width / 2 then
-			break
-		elseif self._bird.x - self._bird.width / 2 < child.x + child.width then
-			break
-		end
+		self._reward_text.text = reward
+		self._target_x_text.text = start_y
+		self._target_y_text.text = end_y
 	end
-	reward = 0
-	do
-		local distance = ALittle.Math_Sqrt((src_x - dst_x) * (src_x - dst_x) + (src_y - dst_y) * (src_y - dst_y))
-		local total = A_UISystem.view_width + A_UISystem.view_width
-	end
-	do
-		local center_y = self._ground.y / 2
-		reward = reward + (((src_y - center_y) / center_y) * (-self._fly_y_rate) * 100)
-	end
-	self._reward_text.text = reward
 	return reward
+end
+
+function FlappyBird.GCenter:CalcPipe()
+	for i, child in ___ipairs(self._pipe_container.childs) do
+		if child.x + child.width >= self._bird.x - self._bird.width / 2 then
+			return child
+		end
+	end
+	return nil
 end
 
 function FlappyBird.GCenter:LoopGroundFrame(frame_time)
 	local y_delta_time = frame_time / 1000
 	local x_delta_time = frame_time / 20
+	local old_dieing = self._dieing
+	local old_pipe = self:CalcPipe()
 	local state
 	local action = 0
 	if self._dqn_model ~= nil then
@@ -221,6 +236,7 @@ function FlappyBird.GCenter:LoopGroundFrame(frame_time)
 			self._bird.angle = 45 * rate
 		end
 	end
+	local new_pipe = self:CalcPipe()
 	if self._dieing then
 		if self._bird.y + self._bird.height / 2 >= self._ground.y then
 			self:ShowGameOver()
@@ -246,8 +262,8 @@ function FlappyBird.GCenter:LoopGroundFrame(frame_time)
 				self:HandleStartClick(nil)
 			end
 		end
-		if self._dqn_model ~= nil and self._dieing == false then
-			local reward = self:CalcReward()
+		if self._dqn_model ~= nil and (self._dieing == false or old_dieing == false) then
+			local reward = self:CalcReward(self._dieing, old_pipe ~= new_pipe)
 			local next_state = self:CalcState()
 			self._dqn_model:SaveTransition(state, action, reward, next_state)
 			local i = 1
