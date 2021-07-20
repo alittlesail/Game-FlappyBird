@@ -52,8 +52,9 @@ class GCenter
 
     [Language(Lua)]
     private deeplearning.DeeplearningDQNModel _dqn_model;
+    private string _dqn_model_path;
 
-    private double _dqn_range = 30;
+    private double _dqn_range = 0;
     private ALittle.DisplayObject _reward_text;
     private ALittle.DisplayObject _target_x_text;
     private ALittle.DisplayObject _target_y_text;
@@ -119,8 +120,12 @@ class GCenter
 
         if (deeplearning.DeeplearningDQNModel != null)
         {
-            this._dqn_model = new deeplearning.DeeplearningDQNModel(3, 2, 100, 2000);
-            this._dqn_model.Load(g_ModuleBasePath.."/Other/flappybird.model");
+            var state_num = 3;
+            var action_num = 2;
+            this._dqn_model = new deeplearning.DeeplearningDQNModel(state_num, action_num, 100, 2000);
+
+            this._dqn_model_path = g_ModuleBasePath.."/Other/flappybird_"..state_num.."_"..action_num..".model";
+            this._dqn_model.Load(this._dqn_model_path);
 
             this._tip_1.visible = false;
             this._tip_2.visible = false;
@@ -132,7 +137,7 @@ class GCenter
         this._ground_frame_acc = 0;
         this._next_pipe_gap = 0;
         this._next_pipe_up = 50;
-        this._bird.y = this._bg.height / 2;
+        this._bird.y = this._ground.y / 2;
         this._bird.x = this._bird.width;
         this._bird.angle = 0;
         this._bird.visible = true;
@@ -153,37 +158,35 @@ class GCenter
 
     private fun CalcState() : List<double>
     {
-        var dst_x, start_y, end_y = this.CalcRange();
-        var dst_y = (end_y - start_y) / 2 + start_y;
+        var dst_x, start_y, end_y, total_y, center_y = this.CalcRange();
 
         var state = new List<double>();
         state[1] = dst_x - this._bird.x;
-        state[2] = dst_y - this._bird.y;
+        state[2] = center_y - this._bird.y;
         state[3] = this._fly_y_rate;
     
         return state;
     }
 
-    private fun CalcRange() : double, double, double
+    private fun CalcRange() : double, double, double, double, double
     {
-        var dst_x = this._bird.x;
-        var start_y = 0.0;
-        var end_y = this._ground.y;
+        var dst_x:double = A_UISystem.view_width;
+        var start_y:double = 0;
+        var end_y:double = this._ground.y;
 
         for (var i, child in this._pipe_container.childs)
         {
             if (child.x + child.width >= this._bird.x - this._bird.width / 2)
             {
+                dst_x = child.x + child.width + this._bird.width / 2;
                 // 上面的水管
                 if (child._user_data == true)
                 {
-                    dst_x = child.x + child.width / 2;
                     start_y = child.y + child.height + this._bird.height / 2 + this._dqn_range;
                     end_y = this._ground.y;
                 }
                 else
                 {
-                    dst_x = child.x + child.width / 2;
                     start_y = 0;
                     end_y = child.y - this._bird.height / 2 - this._dqn_range;
                 }
@@ -192,7 +195,10 @@ class GCenter
             }
         }
 
-        return dst_x, start_y, end_y;
+        var total_y = end_y - start_y;
+        var center_y = total_y / 2 + start_y;
+
+        return dst_x, start_y, end_y, total_y, center_y;
     }
 
     private fun CalcReward(bool die, bool change_pipe) : double
@@ -204,31 +210,54 @@ class GCenter
         var src_x = this._bird.x;
         var src_y = this._bird.y;
 
-        var dst_x, start_y, end_y = this.CalcRange();
+        var dst_x, start_y, end_y, total_y, center_y = this.CalcRange();
+
+
         var reward = 0.0;
 
         // 距离边缘越近，速度越快，分数越低
         {
             var max = 100;
-            var total_y = end_y - start_y;
-            var center_y = total_y / 2 + start_y;
 
             if (src_y > center_y)
             {
                 var k = max / (center_y - end_y);
-                var b = - end_y * k;
+                var b = max;
 
-                reward += k * src_y + b;
+                reward += k * (src_y - center_y) + b;
             }
             else
             {
                 var k = max / (center_y - start_y);
-                var b = - start_y * k;
+                var b = max;
 
-                reward += k * src_y + b;
+                reward += k * (src_y - center_y) + b;
             }
 
-            this._reward_text.text = reward;
+            if (reward > 0)
+            {
+                if (src_y > center_y)
+                {
+                    if (this._fly_y_rate > 0)
+                    	reward -= ALittle.Math_Abs(src_y - center_y) / total_y * 2 * ALittle.Math_Abs(this._fly_y_rate);
+                    else
+                        reward += ALittle.Math_Abs(src_y - center_y) / total_y * 2 * ALittle.Math_Abs(this._fly_y_rate);
+                }
+
+                if (src_y < center_y)
+                {
+                    if (this._fly_y_rate < 0)
+                    	reward -= ALittle.Math_Abs(src_y - center_y) / total_y * 2 * ALittle.Math_Abs(this._fly_y_rate);
+                    else
+                        reward += ALittle.Math_Abs(src_y - center_y) / total_y * 2 * ALittle.Math_Abs(this._fly_y_rate);
+                }
+            }
+
+            this._reward_text.text = ALittle.Math_Floor(reward);
+            this._reward_text.red = 0;
+            if (reward < 20) this._reward_text.red = 1;
+            this._reward_text.green = 0;
+            this._reward_text.blue = 0;
             this._target_x_text.text = start_y;
             this._target_y_text.text = end_y;
         
@@ -252,6 +281,14 @@ class GCenter
 
     public fun LoopGroundFrame(int frame_time)
     {
+        // for (var i = 0; i < 100; 1)
+        //	this.LoopGroundFrameImpl(16);
+
+        this.LoopGroundFrameImpl(frame_time);
+    }
+
+    public fun LoopGroundFrameImpl(int frame_time)
+    {
         var y_delta_time = frame_time / 1000;
         var x_delta_time = frame_time / 20;
 
@@ -264,7 +301,7 @@ class GCenter
         if (this._dqn_model != null)
         {
             state = this.CalcState();
-            action = this._dqn_model.ChooseAction(state, 9);
+            action = this._dqn_model.ChooseAction(state, 10);
         }
 
         if (!this._dieing)
@@ -342,7 +379,7 @@ class GCenter
                 }
                 pipe.x = this._bg.width;
 
-                this._next_pipe_gap = ALittle.Math_RandomInt(50, 100);
+                this._next_pipe_gap = ALittle.Math_RandomInt(100, 150);
             }
 
             // 全部向左移动
@@ -353,9 +390,9 @@ class GCenter
         }
 
         // 计算速度
-        this._fly_y_rate = this._fly_a * y_delta_time + this._fly_y_rate;
-        // 鸟向下掉
-        this._bird.y = this._bird.y + this._fly_y_rate;
+        this._fly_y_rate += this._fly_a * y_delta_time;
+        // 鸟向y轴变化 
+        this._bird.y += this._fly_y_rate;
 
         // 根据速度来设置角度
         if (this._dieing == false)
@@ -399,14 +436,18 @@ class GCenter
                 }
             }
 
-            if (this._bird.y <= 0 || this._bird.y + this._bird.height / 2 >= this._ground.y)
+            if (this._bird.y - this._bird.height / 2 <= 0 || this._bird.y + this._bird.height / 2 >= this._ground.y)
                 this._dieing = true;
 
             if (this._dieing)
             {
                 this._bird.angle = 90;
                 this._bird.Stop();
-                if (this._dqn_model != null) this.HandleStartClick(null);
+                if (this._dqn_model != null)
+                {
+                    this.ShowGameOver();
+                    this.HandleStartClick(null);
+                }
             }
 
             if (this._dqn_model != null && (this._dieing == false || old_dieing == false))
@@ -462,7 +503,7 @@ class GCenter
 
         if (this._dqn_model != null)
         {
-            this._dqn_model.Save(g_ModuleBasePath.."/Other/flappybird.model");
+            this._dqn_model.Save(this._dqn_model_path);
 			this.HandleStartClick(null);
         }
     }
@@ -475,7 +516,7 @@ class GCenter
 
         if (this._dqn_model != null)
         {
-            this._dqn_model.Save(g_ModuleBasePath.."/Other/flappybird.model");
+            this._dqn_model.Save(this._dqn_model_path);
             this._dqn_model = null;
         }
     }
