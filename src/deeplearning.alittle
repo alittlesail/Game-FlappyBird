@@ -81,9 +81,8 @@ public class DeeplearningDQNModel : DeeplearningModel
     public ctor(int state_count, int action_count, int hide_dim, int memory_capaticy) {}
 
     // state 是当前的状态向量
-    // espsilon 内部会随机一个[0, 9]的值，如果小于espsilon就使用预测值，否则就使用随机值
     // 返回一个action
-    public fun ChooseAction(List<double> state, int espsilon) : int {}
+    public fun ChooseAction(List<double> state) : int {}
 
     // 保存经验
     public fun SaveTransition(List<double> state, int action, double reward, List<double> next_state) {}

@@ -212,7 +212,6 @@ class GCenter
 
         var dst_x, start_y, end_y, total_y, center_y = this.CalcRange();
 
-
         var reward = 0.0;
 
         // 距离边缘越近，速度越快，分数越低
@@ -301,7 +300,11 @@ class GCenter
         if (this._dqn_model != null)
         {
             state = this.CalcState();
-            action = this._dqn_model.ChooseAction(state, 10);
+
+            if (ALittle.Math_RandomInt(1, 100) < 99)
+            	action = this._dqn_model.ChooseAction(state);
+            else
+            	action = ALittle.Math_RandomInt(0, 1);
         }
 
         if (!this._dieing)

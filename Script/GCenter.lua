@@ -188,7 +188,11 @@ function FlappyBird.GCenter:LoopGroundFrameImpl(frame_time)
 	local action = 0
 	if self._dqn_model ~= nil then
 		state = self:CalcState()
-		action = self._dqn_model:ChooseAction(state, 10)
+		if ALittle.Math_RandomInt(1, 100) < 99 then
+			action = self._dqn_model:ChooseAction(state)
+		else
+			action = ALittle.Math_RandomInt(0, 1)
+		end
 	end
 	if not self._dieing then
 		if action ~= 0 then
