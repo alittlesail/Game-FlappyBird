@@ -35,19 +35,6 @@ window.RunScript = function(script, path) {
 	eval(script);
 }
 
-window.RequireFromPaths = function(base_path, rel_path, file_list) {
-	return new Promise(async function(___COROUTINE, ___) {
-		let ___OBJECT_1 = file_list;
-		for (let index = 1; index <= ___OBJECT_1.length; ++index) {
-			let path = ___OBJECT_1[index - 1];
-			if (path === undefined) break;
-			path = path.substring(0, path.length - 8);
-			await Require(base_path, rel_path + path);
-		}
-		___COROUTINE();
-	});
-}
-
 window.A_CoreBasePath = undefined;
 window.RequireCore = function(base_path) {
 	return new Promise(async function(___COROUTINE, ___) {
@@ -64,6 +51,7 @@ window.RequireCore = function(base_path) {
 		await Require(base_path, "Core/Coroutine");
 		await Require(base_path, "Core/Net");
 		await Require(base_path, "Core/Worker");
+		await Require(base_path, "Core/Require");
 		___COROUTINE();
 	});
 }
@@ -613,7 +601,7 @@ ALittle.String_Trim = function(text) {
 	return text.trim();
 }
 
-ALittle.String_Split = function(target, sep, start_pos) {
+ALittle.String_Split = function(target, sep, start_pos, ignore_empty) {
 	if (target === undefined || target === "") {
 		return [];
 	}
@@ -628,12 +616,18 @@ ALittle.String_Split = function(target, sep, start_pos) {
 	while (true) {
 		let start_index = ALittle.String_Find(target, sep, start_pos);
 		if (start_index === undefined) {
-			++ fields_count;
-			fields[fields_count - 1] = ALittle.String_Sub(target, start_pos);
+			let field = ALittle.String_Sub(target, start_pos);
+			if (!ignore_empty || field !== "") {
+				++ fields_count;
+				fields[fields_count - 1] = field;
+			}
 			break;
 		}
-		++ fields_count;
-		fields[fields_count - 1] = ALittle.String_Sub(target, start_pos, start_index - 1);
+		let field = ALittle.String_Sub(target, start_pos, start_index - 1);
+		if (!ignore_empty || field !== "") {
+			++ fields_count;
+			fields[fields_count - 1] = field;
+		}
 		start_pos = start_index + ALittle.String_Len(sep);
 	}
 	return fields;
@@ -691,6 +685,9 @@ ALittle.String_Replace = function(s, os, ns) {
 }
 
 ALittle.String_CopyTable = function(info) {
+	if (info === undefined) {
+		return undefined;
+	}
 	{
 		if (typeof(info) === "object") {
 			if (info.__proto__.constructor === Array) {
@@ -747,6 +744,32 @@ ALittle.Time_GetCurTime = function() {
 	return ALittle.Math_Floor(Date.now() / 1000);
 }
 
+ALittle.Time_GetCurBeginTime = function(time) {
+	{
+		let date = new Date();
+		if (time !== undefined) {
+			date.setTime(time * 1000);
+		}
+		date.setHours(0);
+		date.setMinutes(0);
+		date.setSeconds(0);
+		return ALittle.Math_Floor(date.getTime() / 1000);
+	}
+}
+
+ALittle.Time_MakeTime = function(year, month, day, hour, minute, second) {
+	{
+		let date = new Date();
+		date.setFullYear(year);
+		date.setMonth(month - 1);
+		date.setDate(day);
+		date.setHours(hour);
+		date.setMinutes(minute);
+		date.setSeconds(second);
+		return ALittle.Math_Floor(date.getTime() / 1000);
+	}
+}
+
 ALittle.Time_GetCurDate = function(time) {
 	{
 		let date = new Date();
@@ -754,7 +777,7 @@ ALittle.Time_GetCurDate = function(time) {
 			date.setTime(time * 1000);
 		}
 		let result = date.getFullYear() + "-";
-		let month = (date.getMonth() + 1);
+		let month = date.getMonth() + 1;
 		if (month < 10) {
 			result = result + "-0" + month;
 		} else {
@@ -795,7 +818,7 @@ ALittle.Time_GetCurYMD = function(time) {
 			date.setTime(time * 1000);
 		}
 		let result = date.getFullYear() + "-";
-		let month = (date.getMonth() + 1);
+		let month = date.getMonth() + 1;
 		if (month < 10) {
 			result = result + "-0" + month;
 		} else {
@@ -809,6 +832,53 @@ ALittle.Time_GetCurYMD = function(time) {
 		}
 		return result;
 	}
+}
+
+ALittle.Time_GetYear = function(time) {
+	{
+		let date = new Date();
+		if (time !== undefined) {
+			date.setTime(time * 1000);
+		}
+		return date.getFullYear();
+	}
+}
+
+ALittle.Time_GetMonth = function(time) {
+	{
+		let date = new Date();
+		if (time !== undefined) {
+			date.setTime(time * 1000);
+		}
+		return date.getMonth() + 1;
+	}
+}
+
+ALittle.Time_GetDay = function(time) {
+	{
+		let date = new Date();
+		if (time !== undefined) {
+			date.setTime(time * 1000);
+		}
+		return date.getDate();
+	}
+}
+
+ALittle.Time_GetMonthDayCount = function(year, month) {
+	if (month === 1 || month === 3 || month === 5 || month === 7 || month === 8 || month === 10 || month === 12) {
+		return 31;
+	}
+	if (month === 2) {
+		if ((year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0)) {
+			return 29;
+		} else {
+			return 28;
+		}
+	}
+	if (month >= 1 && month <= 12) {
+		return 30;
+	}
+	return 0;
 }
 
 }
@@ -1179,5 +1249,211 @@ ALittle.RegWorkerRpcCallback = function(msg_id, callback, return_id) {
 ALittle.FindWorkerRpcCallback = function(msg_id) {
 	return [__all_worker_rpc_callback.get(msg_id), __all_worker_rpc_return_id.get(msg_id)];
 }
+
+}
+{
+if (typeof ALittle === "undefined") window.ALittle = {};
+
+
+ALittle.Require = JavaScript.Class(undefined, {
+	Ctor : function() {
+		this._rely_map = {};
+		this._reverse_map = {};
+		this._loading_count = 0;
+		this._file_count = 0;
+	},
+	AddPaths : function(base_path, rel_path, rely_list_list) {
+		base_path = base_path + rel_path;
+		let ___OBJECT_1 = rely_list_list;
+		for (let _ = 1; _ <= ___OBJECT_1.length; ++_) {
+			let rely_list = ___OBJECT_1[_ - 1];
+			if (rely_list === undefined) break;
+			let key = base_path + rely_list[1 - 1];
+			let sub_map = this._rely_map[key];
+			if (sub_map === undefined) {
+				sub_map = {};
+				this._rely_map[key] = sub_map;
+			}
+			let ___OBJECT_2 = rely_list;
+			for (let index = 1; index <= ___OBJECT_2.length; ++index) {
+				let value = ___OBJECT_2[index - 1];
+				if (value === undefined) break;
+				if (index !== 1) {
+					sub_map[base_path + value] = true;
+				}
+			}
+		}
+	},
+	DoNext : function() {
+		{
+			if (this._file_count <= 0) {
+				if (this._loading_count <= 0) {
+					let thread = this._thread;
+					this._thread = undefined;
+					if (thread !== undefined) {
+						thread(undefined);
+					}
+				}
+				return;
+			}
+			let require_list = this.PopList();
+			if (require_list === undefined) {
+				if (this._loading_count <= 0) {
+					let thread = this._thread;
+					this._thread = undefined;
+					if (thread !== undefined) {
+						thread("require ring");
+					}
+				}
+				return;
+			}
+			let ___OBJECT_3 = require_list;
+			for (let index = 1; index <= ___OBJECT_3.length; ++index) {
+				let url = ___OBJECT_3[index - 1];
+				if (url === undefined) break;
+				this._loading_count = this._loading_count + (1);
+				let script = document.createElement("script");
+				script.type = "text/javascript";
+				script.async = "async";
+				let error = this.OnLoad.bind(this, url, "load failed");
+				script.onabort = error;
+				script.onerror = error;
+				script.ontimeout = error;
+				script.onload = this.OnLoad.bind(this, url, undefined);
+				script.src = url + ".js";
+				document.body.appendChild(script);
+			}
+		}
+	},
+	OnLoad : function(url, error) {
+		this.RemoveReply(url);
+		-- this._loading_count;
+		this.DoNext();
+	},
+	Start : function() {
+		return new Promise((function(___COROUTINE, ___) {
+			if (this._thread !== undefined) {
+				___COROUTINE("doing require"); return;
+			}
+			this._file_count = 0;
+			this._reverse_map = {};
+			let ___OBJECT_4 = this._rely_map;
+			for (let key in ___OBJECT_4) {
+				let value_map = ___OBJECT_4[key];
+				if (value_map === undefined) continue;
+				let ___OBJECT_5 = value_map;
+				for (let value in ___OBJECT_5) {
+					let _ = ___OBJECT_5[value];
+					if (_ === undefined) continue;
+					let sub_map = this._reverse_map[value];
+					if (sub_map === undefined) {
+						sub_map = {};
+						this._reverse_map[value] = sub_map;
+					}
+					sub_map[key] = true;
+				}
+				this._file_count = this._file_count + (1);
+			}
+			if (typeof(importScripts) !== "undefined") {
+				while (true) {
+					if (this._file_count <= 0) {
+						___COROUTINE(undefined); return;
+					}
+					let require_list = this.PopList();
+					if (require_list === undefined) {
+						___COROUTINE("require ring"); return;
+					}
+					let ___OBJECT_6 = require_list;
+					for (let index = 1; index <= ___OBJECT_6.length; ++index) {
+						let url = ___OBJECT_6[index - 1];
+						if (url === undefined) break;
+						this.RemoveReply(url);
+					}
+					let ___OBJECT_7 = require_list;
+					for (let index = 1; index <= ___OBJECT_7.length; ++index) {
+						let url = ___OBJECT_7[index - 1];
+						if (url === undefined) break;
+						importScripts("../../../" + url);
+					}
+				}
+				___COROUTINE(undefined); return;
+			}
+			if (typeof(require) !== "undefined") {
+				while (true) {
+					if (this._file_count <= 0) {
+						___COROUTINE(undefined); return;
+					}
+					let require_list = this.PopList();
+					if (require_list === undefined) {
+						___COROUTINE("require ring"); return;
+					}
+					let ___OBJECT_8 = require_list;
+					for (let index = 1; index <= ___OBJECT_8.length; ++index) {
+						let url = ___OBJECT_8[index - 1];
+						if (url === undefined) break;
+						this.RemoveReply(url);
+					}
+					let ___OBJECT_9 = require_list;
+					for (let index = 1; index <= ___OBJECT_9.length; ++index) {
+						let url = ___OBJECT_9[index - 1];
+						if (url === undefined) break;
+						require("../../../" + url);
+					}
+				}
+				___COROUTINE(undefined); return;
+			}
+			this._thread = ___COROUTINE;
+			this.DoNext();
+			return;
+		}).bind(this));
+	},
+	PopList : function() {
+		let require_list = undefined;
+		let ___OBJECT_10 = this._rely_map;
+		for (let key in ___OBJECT_10) {
+			let value_map = ___OBJECT_10[key];
+			if (value_map === undefined) continue;
+			let empty = true;
+			let ___OBJECT_11 = value_map;
+			for (let _1 in ___OBJECT_11) {
+				let _v2 = ___OBJECT_11[_1];
+				if (_v2 === undefined) continue;
+				empty = false;
+				break;
+			}
+			if (empty) {
+				if (require_list === undefined) {
+					require_list = [];
+				}
+				require_list.push(key);
+			}
+		}
+		if (require_list === undefined) {
+			return undefined;
+		}
+		let ___OBJECT_12 = require_list;
+		for (let index = 1; index <= ___OBJECT_12.length; ++index) {
+			let url = ___OBJECT_12[index - 1];
+			if (url === undefined) break;
+			delete this._rely_map[url];
+			this._file_count = this._file_count - (1);
+		}
+		return require_list;
+	},
+	RemoveReply : function(value) {
+		let sub_map = this._reverse_map[value];
+		if (sub_map !== undefined) {
+			let ___OBJECT_13 = sub_map;
+			for (let key in ___OBJECT_13) {
+				let _ = ___OBJECT_13[key];
+				if (_ === undefined) continue;
+				let rely_sub_map = this._rely_map[key];
+				if (rely_sub_map !== undefined) {
+					delete rely_sub_map[value];
+				}
+			}
+		}
+	},
+}, "ALittle.Require");
 
 }

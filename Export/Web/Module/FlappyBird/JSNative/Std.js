@@ -11,7 +11,7 @@ window.RequireStd = function(base_path) {
 		await Require(base_path, "Loop/LoopObject");
 		await Require(base_path, "Loop/ILoopSystem");
 		await Require(base_path, "Loop/LoopFrame");
-		await Require(base_path, "Loop/LoopFunction");
+		await Require(base_path, "Loop/LoopRepeat");
 		await Require(base_path, "Loop/LoopGroup");
 		await Require(base_path, "Loop/LoopList");
 		await Require(base_path, "Loop/LoopTimer");
@@ -58,7 +58,7 @@ if (typeof ALittle === "undefined") window.ALittle = {};
 ALittle.RegStruct(2073949729, "ALittle.CmdCallbackInfo", {
 name : "ALittle.CmdCallbackInfo", ns_name : "ALittle", rl_name : "CmdCallbackInfo", hash_code : 2073949729,
 name_list : ["callback","var_list","name_list","desc"],
-type_list : ["Functor<(...)>","List<string>","List<string>","string"],
+type_list : ["Functor<(...):string>","List<string>","List<string>","string"],
 option_map : {}
 })
 
@@ -81,10 +81,7 @@ ALittle.RegCmdCallback = function(method, callback, var_list, name_list, desc) {
 }
 
 ALittle.ExecuteCommand = function(cmd) {
-	if (cmd === "") {
-		ALittle.Warn("命令行是空");
-		return;
-	}
+	JavaScript.Assert(cmd !== "", "命令行是空");
 	let method = "";
 	let param = "";
 	let index = ALittle.String_Find(cmd, " ");
@@ -123,14 +120,10 @@ ALittle.ExecuteCommand = function(cmd) {
 			detail = method_name + " " + ALittle.String_Join(param_list, ", ") + " " + info.desc;
 			ALittle.List_Push(out_list, detail);
 		}
-		ALittle.Log(ALittle.String_Join(out_list, "\n"));
-		return;
+		return ALittle.String_Join(out_list, "\n");
 	}
 	let info = __all_callback[method];
-	if (info === undefined) {
-		ALittle.Warn("未知指令:" + cmd);
-		return;
-	}
+	JavaScript.Assert(info, "未知指令:" + cmd);
 	let param_list = [];
 	index = 1;
 	let in_quote = false;
@@ -182,10 +175,7 @@ ALittle.ExecuteCommand = function(cmd) {
 	}
 	len = ALittle.List_Len(param_list);
 	let need_len = ALittle.List_Len(info.var_list);
-	if (len !== need_len) {
-		ALittle.Warn("输入的参数数量" + len + "和指令要求" + need_len + "的不一致");
-		return;
-	}
+	JavaScript.Assert(len === need_len, "输入的参数数量" + len + "和指令要求" + need_len + "的不一致");
 	let value_list = [];
 	let ___OBJECT_4 = param_list;
 	for (let ii = 1; ii <= ___OBJECT_4.length; ++ii) {
@@ -194,10 +184,7 @@ ALittle.ExecuteCommand = function(cmd) {
 		let var_type = info.var_list[ii - 1];
 		if (var_type === "int" || var_type === "long" || var_type === "double") {
 			value_list[ii - 1] = ALittle.Math_ToDouble(param_list[ii - 1]);
-			if (value_list[ii - 1] === undefined) {
-				ALittle.Warn("输入的第" + ii + "个参数" + param_list[ii - 1] + "转为" + var_type + "失败");
-				return;
-			}
+			JavaScript.Assert(value_list[ii - 1] !== undefined, "输入的第" + ii + "个参数" + param_list[ii - 1] + "转为" + var_type + "失败");
 		} else if (var_type === "string") {
 			value_list[ii - 1] = param_list[ii - 1];
 		} else if (var_type === "bool") {
@@ -206,15 +193,14 @@ ALittle.ExecuteCommand = function(cmd) {
 			} else if (param_list[ii - 1] === "false") {
 				value_list[ii - 1] = false;
 			} else {
-				ALittle.Warn("输入的第" + ii + "个参数" + param_list[ii - 1] + "转为" + var_type + "失败");
-				return;
+				JavaScript.Assert(false, "输入的第" + ii + "个参数" + param_list[ii - 1] + "转为" + var_type + "失败");
 			}
 		} else {
-			ALittle.Warn("输入的第" + ii + "个参数" + param_list[ii - 1] + "转为" + var_type + "失败，支持基本变量类型");
-			return;
+			JavaScript.Assert(false, "输入的第" + ii + "个参数" + param_list[ii - 1] + "转为" + var_type + "失败，支持基本变量类型");
 		}
 	}
-	info.callback.apply(undefined, value_list);
+	let [result] = info.callback.apply(undefined, value_list);
+	return result;
 }
 
 }
@@ -952,12 +938,22 @@ if (typeof ALittle === "undefined") window.ALittle = {};
 
 
 ALittle.LoopObject = JavaScript.Class(undefined, {
+	get complete_callback() {
+		return this._complete_callback;
+	},
+	set complete_callback(value) {
+		this._complete_callback = value;
+	},
 	IsCompleted : function() {
 		return true;
 	},
 	Completed : function() {
+		if (this._complete_callback !== undefined) {
+			this._complete_callback();
+		}
 	},
 	Update : function(frame_time) {
+		return frame_time;
 	},
 	Reset : function() {
 	},
@@ -1013,8 +1009,8 @@ if (typeof ALittle === "undefined") window.ALittle = {};
 if (ALittle.LoopObject === undefined) throw new Error(" extends class:ALittle.LoopObject is undefined");
 ALittle.LoopFrame = JavaScript.Class(ALittle.LoopObject, {
 	Ctor : function(func) {
-		this._func = func;
 		this._force_completed = false;
+		this._func = func;
 		if (this._func === undefined) {
 			this._force_completed = true;
 			ALittle.Log("LoopFrame create failed:function is nil or not a function");
@@ -1022,8 +1018,7 @@ ALittle.LoopFrame = JavaScript.Class(ALittle.LoopObject, {
 		}
 	},
 	Reset : function() {
-	},
-	Completed : function() {
+		this._force_completed = false;
 	},
 	IsCompleted : function() {
 		return this._force_completed;
@@ -1036,6 +1031,7 @@ ALittle.LoopFrame = JavaScript.Class(ALittle.LoopObject, {
 	},
 	Update : function(frame_time) {
 		this._func(frame_time);
+		return 0;
 	},
 }, "ALittle.LoopFrame");
 
@@ -1045,45 +1041,25 @@ if (typeof ALittle === "undefined") window.ALittle = {};
 
 
 if (ALittle.LoopObject === undefined) throw new Error(" extends class:ALittle.LoopObject is undefined");
-ALittle.LoopFunction = JavaScript.Class(ALittle.LoopObject, {
-	Ctor : function(func, count, interval_time, delay_time) {
-		this._func = func;
-		this._total_count = count;
+ALittle.LoopRepeat = JavaScript.Class(ALittle.LoopObject, {
+	Ctor : function(object, count) {
 		this._force_completed = false;
-		if (delay_time === undefined || delay_time < 0) {
-			delay_time = 0;
-		}
-		if (interval_time < 0) {
-			interval_time = 0;
-		}
-		this._total_interval_time = interval_time;
-		this._total_delay_time = delay_time;
+		this._object = object;
+		this._total_count = count;
 		this._accumulate_count = 0;
-		this._accumulate_time = 0;
-		this._accumulate_delay_time = 0;
-		if (this._func === undefined) {
+		if (this._object === undefined) {
 			this._accumulate_count = 0;
 			this._total_count = 0;
-			ALittle.Log("LoopFunction create failed:function is nil or not a function");
+			ALittle.Log("LoopRepeat create failed:function is nil or not a function");
 			return;
 		}
-		this._complete_callback = undefined;
-	},
-	get complete_callback() {
-		return this._complete_callback;
-	},
-	set complete_callback(value) {
-		this._complete_callback = value;
 	},
 	Reset : function() {
 		this._accumulate_count = 0;
-		this._accumulate_time = 0;
-		this._accumulate_delay_time = 0;
-	},
-	Completed : function() {
-		if (this._complete_callback !== undefined) {
-			this._complete_callback();
+		if (this._object !== undefined) {
+			this._object.Reset();
 		}
+		this._force_completed = false;
 	},
 	IsCompleted : function() {
 		if (this._force_completed) {
@@ -1103,48 +1079,35 @@ ALittle.LoopFunction = JavaScript.Class(ALittle.LoopObject, {
 	},
 	SetTime : function(time) {
 		this._accumulate_count = 0;
-		this._accumulate_delay_time = 0;
-		this._accumulate_time = 0;
 		if (time <= 0) {
 			return [0, false];
 		}
 		if (this._total_count < 0) {
 			return [0, false];
 		}
-		if (time <= this._total_delay_time) {
-			this._accumulate_delay_time = time;
-			return [0, false];
+		while (this._accumulate_count < this._total_count && time > 0) {
+			let [remain_time, competed] = this._object.SetTime(time);
+			if (competed) {
+				++ this._accumulate_count;
+			}
+			time = remain_time;
 		}
-		this._accumulate_delay_time = this._total_delay_time;
-		time = time - (this._total_delay_time);
-		let total_time = this._total_interval_time * this._total_count;
-		if (time < total_time) {
-			let float_count = total_time / this._total_interval_time;
-			let count = ALittle.Math_Floor(float_count);
-			this._accumulate_count = count;
-			this._accumulate_time = ALittle.Math_Floor((float_count - count) * this._total_interval_time);
-			return [0, false];
-		}
-		this._accumulate_count = this._total_count;
-		return [time - total_time, true];
+		return [time, this._accumulate_count >= this._total_count];
 	},
 	Update : function(frame_time) {
-		if (this._accumulate_delay_time < this._total_delay_time) {
-			this._accumulate_delay_time = this._accumulate_delay_time + (frame_time);
-			if (this._accumulate_delay_time < this._total_delay_time) {
-				return;
+		while ((this._total_count <= 0 || this._accumulate_count < this._total_count) && frame_time > 0) {
+			if (this._object.IsCompleted()) {
+				this._object.Reset();
 			}
-			frame_time = this._accumulate_delay_time - this._total_delay_time;
-			this._accumulate_delay_time = this._total_delay_time;
+			frame_time = this._object.Update(frame_time);
+			if (this._object.IsCompleted()) {
+				++ this._accumulate_count;
+				this._object.Completed();
+			}
 		}
-		this._accumulate_time = this._accumulate_time + (frame_time);
-		if (this._accumulate_time > this._total_interval_time) {
-			this._accumulate_time = 0;
-			++ this._accumulate_count;
-			this._func();
-		}
+		return frame_time;
 	},
-}, "ALittle.LoopFunction");
+}, "ALittle.LoopRepeat");
 
 }
 {
@@ -1158,13 +1121,6 @@ ALittle.LoopGroup = JavaScript.Class(ALittle.LoopObject, {
 		this._complete_count = 0;
 		this._loop_updaters = new Map();
 		this._complete_updaters = new Map();
-		this._complete_callback = undefined;
-	},
-	get complete_callback() {
-		return this._complete_callback;
-	},
-	set complete_callback(value) {
-		this._complete_callback = value;
 	},
 	get total_count() {
 		return this._total_count;
@@ -1176,7 +1132,12 @@ ALittle.LoopGroup = JavaScript.Class(ALittle.LoopObject, {
 		if (this._complete_updaters.get(value) || this._loop_updaters.get(value)) {
 			return;
 		}
-		this._loop_updaters.set(value, true);
+		if (value.IsCompleted()) {
+			this._complete_updaters.set(value, true);
+			++ this._complete_count;
+		} else {
+			this._loop_updaters.set(value, true);
+		}
 		++ this._total_count;
 	},
 	RemoveUpdater : function(value) {
@@ -1238,11 +1199,6 @@ ALittle.LoopGroup = JavaScript.Class(ALittle.LoopObject, {
 	IsCompleted : function() {
 		return this._complete_count >= this._total_count;
 	},
-	Completed : function() {
-		if (this._complete_callback !== undefined) {
-			this._complete_callback();
-		}
-	},
 	SetCompleted : function() {
 		this._complete_count = this._total_count;
 		for (let [updater, v] of this._loop_updaters) {
@@ -1254,15 +1210,17 @@ ALittle.LoopGroup = JavaScript.Class(ALittle.LoopObject, {
 	},
 	Update : function(frame_time) {
 		if (this._complete_count >= this._total_count) {
-			return;
+			return frame_time;
 		}
 		let remove_map = new Map();
 		for (let [updater, v] of this._loop_updaters) {
 			if (v === undefined) continue;
+			let remain_time = updater.Update(frame_time);
+			if (remain_time < frame_time) {
+				frame_time = remain_time;
+			}
 			if (updater.IsCompleted()) {
 				remove_map.set(updater, true);
-			} else {
-				updater.Update(frame_time);
 			}
 		}
 		for (let [updater, v] of remove_map) {
@@ -1272,6 +1230,7 @@ ALittle.LoopGroup = JavaScript.Class(ALittle.LoopObject, {
 			++ this._complete_count;
 			updater.Completed();
 		}
+		return frame_time;
 	},
 }, "ALittle.LoopGroup");
 
@@ -1287,12 +1246,6 @@ ALittle.LoopList = JavaScript.Class(ALittle.LoopObject, {
 		this._cur_index = 1;
 		this._update_list = [];
 		this._complete_callback = undefined;
-	},
-	get complete_callback() {
-		return this._complete_callback;
-	},
-	set complete_callback(value) {
-		this._complete_callback = value;
 	},
 	get total_count() {
 		return this._count;
@@ -1359,11 +1312,6 @@ ALittle.LoopList = JavaScript.Class(ALittle.LoopObject, {
 	IsCompleted : function() {
 		return this._cur_index > this._count;
 	},
-	Completed : function() {
-		if (this._complete_callback !== undefined) {
-			this._complete_callback();
-		}
-	},
 	SetCompleted : function() {
 		for (let index = this._cur_index; index <= this._count; index += 1) {
 			this._update_list[index - 1].SetCompleted();
@@ -1371,15 +1319,26 @@ ALittle.LoopList = JavaScript.Class(ALittle.LoopObject, {
 		this._cur_index = this._count + 1;
 	},
 	Update : function(frame_time) {
+		if (frame_time <= 0) {
+			return 0;
+		}
 		if (this._cur_index > this._count) {
-			return;
+			return frame_time;
 		}
 		let updater = this._update_list[this._cur_index - 1];
-		updater.Update(frame_time);
+		if (updater.IsCompleted()) {
+			++ this._cur_index;
+			return this.Update(frame_time);
+		}
+		frame_time = updater.Update(frame_time);
 		if (updater.IsCompleted()) {
 			++ this._cur_index;
 			updater.Completed();
 		}
+		if (frame_time <= 0) {
+			return 0;
+		}
+		return this.Update(frame_time);
 	},
 }, "ALittle.LoopList");
 
@@ -1406,20 +1365,9 @@ ALittle.LoopTimer = JavaScript.Class(ALittle.LoopObject, {
 		}
 		this._complete_callback = undefined;
 	},
-	get complete_callback() {
-		return this._complete_callback;
-	},
-	set complete_callback(value) {
-		this._complete_callback = value;
-	},
 	Reset : function() {
 		this._accumulate_count = 0;
 		this._accumulate_delay_time = 0;
-	},
-	Completed : function() {
-		if (this._complete_callback !== undefined) {
-			this._complete_callback();
-		}
 	},
 	IsCompleted : function() {
 		return this._accumulate_count >= 1;
@@ -1451,15 +1399,17 @@ ALittle.LoopTimer = JavaScript.Class(ALittle.LoopObject, {
 		if (this._accumulate_delay_time < this._total_delay_time) {
 			this._accumulate_delay_time = this._accumulate_delay_time + (frame_time);
 			if (this._accumulate_delay_time < this._total_delay_time) {
-				return;
+				return 0;
 			}
+			frame_time = this._total_delay_time - this._accumulate_delay_time;
 			this._accumulate_delay_time = this._total_delay_time;
 		}
 		if (this._accumulate_count >= 1) {
-			return;
+			return frame_time;
 		}
 		this._accumulate_count = 1;
 		this._func();
+		return frame_time;
 	},
 }, "ALittle.LoopTimer");
 
@@ -1674,6 +1624,9 @@ ALittle.SingleKeyTableConfig = JavaScript.Class(ALittle.CsvTableConfig, {
 		}
 		this._cache_map.set(key, value);
 		return value;
+	},
+	GetKeyMap : function() {
+		return this._key_map;
 	},
 }, "ALittle.SingleKeyTableConfig");
 
@@ -2048,6 +2001,9 @@ ALittle.SafeIDCreator = JavaScript.Class(undefined, {
 			return id;
 		}
 		this._max_id = this._max_id + 1;
+		if (this._max_id === 0) {
+			this._max_id = this._max_id + 1;
+		}
 		return this._max_id;
 	},
 	ReleaseID : function(id) {
@@ -2176,7 +2132,7 @@ ALittle.String_IsPhoneNumber = function(number) {
 	return true;
 }
 
-ALittle.String_IsWordChar = function(char) {
+ALittle.String_IsCodeChar = function(char) {
 	let len = ALittle.String_Len(char);
 	if (len !== 1) {
 		return false;
@@ -2195,6 +2151,15 @@ ALittle.String_IsWordChar = function(char) {
 		return true;
 	}
 	return false;
+}
+
+ALittle.String_IsAsciiChar = function(char) {
+	let len = ALittle.String_Len(char);
+	if (len !== 1) {
+		return false;
+	}
+	let value = ALittle.String_Byte(char, 1);
+	return value <= 126 && value >= 33;
 }
 
 ALittle.String_SplitUTF8 = function(content) {
@@ -3242,6 +3207,8 @@ ALittle.MsgReceiverTemplate = JavaScript.Class(ALittle.IMsgCommonTemplate, {
 		this._client_logining = false;
 		this._web_account_id = "";
 		this._web_is_logining = false;
+		this._thirdparty_account_id = "";
+		this._thirdparty_is_logining = false;
 	},
 	get remote_ip() {
 		return this._remote_ip;

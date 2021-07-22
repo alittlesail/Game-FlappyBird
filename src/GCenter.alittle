@@ -171,8 +171,8 @@ class GCenter
     private fun CalcRange() : double, double, double, double, double
     {
         var dst_x:double = A_UISystem.view_width;
-        var start_y:double = 0;
-        var end_y:double = this._ground.y;
+        var start_y:double = this._ground.y / 4;
+        var end_y:double = this._ground.y / 4 * 3;
 
         for (var i, child in this._pipe_container.childs)
         {
@@ -203,8 +203,8 @@ class GCenter
 
     private fun CalcReward(bool die, bool change_pipe) : double
     {
-        if (die) return -10000;
-        if (change_pipe) return 100;
+        // if (die) return -100;
+        // if (change_pipe) return 100;
 
         // 当前位置
         var src_x = this._bird.x;

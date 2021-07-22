@@ -95,8 +95,8 @@ end
 
 function FlappyBird.GCenter:CalcRange()
 	local dst_x = A_UISystem.view_width
-	local start_y = 0
-	local end_y = self._ground.y
+	local start_y = self._ground.y / 4
+	local end_y = self._ground.y / 4 * 3
 	for i, child in ___ipairs(self._pipe_container.childs) do
 		if child.x + child.width >= self._bird.x - self._bird.width / 2 then
 			dst_x = child.x + child.width + self._bird.width / 2
@@ -116,12 +116,6 @@ function FlappyBird.GCenter:CalcRange()
 end
 
 function FlappyBird.GCenter:CalcReward(die, change_pipe)
-	if die then
-		return -10000
-	end
-	if change_pipe then
-		return 100
-	end
 	local src_x = self._bird.x
 	local src_y = self._bird.y
 	local dst_x, start_y, end_y, total_y, center_y = self:CalcRange()
