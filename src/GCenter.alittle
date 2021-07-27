@@ -264,14 +264,6 @@ class GCenter
 
     public fun LoopGroundFrame(int frame_time)
     {
-        // for (var i = 0; i < 100; 1)
-        //	this.LoopGroundFrameImpl(16);
-
-        this.LoopGroundFrameImpl(frame_time);
-    }
-
-    public fun LoopGroundFrameImpl(int frame_time)
-    {
         var y_delta_time = frame_time / 1000;
         var x_delta_time = frame_time / 20;
 

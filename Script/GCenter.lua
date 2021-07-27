@@ -157,10 +157,6 @@ function FlappyBird.GCenter:CalcPipe()
 end
 
 function FlappyBird.GCenter:LoopGroundFrame(frame_time)
-	self:LoopGroundFrameImpl(frame_time)
-end
-
-function FlappyBird.GCenter:LoopGroundFrameImpl(frame_time)
 	local y_delta_time = frame_time / 1000
 	local x_delta_time = frame_time / 20
 	local old_dieing = self._dieing
