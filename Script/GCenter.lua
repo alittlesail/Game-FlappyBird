@@ -56,7 +56,7 @@ function FlappyBird.GCenter:Setup()
 	self._max_score_text.text = self._max_score_text._user_data
 	self._frame_anti = ALittle.LoopFrame(Lua.Bind(self.LoopGroundFrame, self))
 	if deeplearning.DeeplearningDQNModel ~= nil then
-		local state_num = 3
+		local state_num = 2
 		local action_num = 2
 		self._dqn_model = deeplearning.DeeplearningDQNModel(state_num, action_num, 100, 2000)
 		self._dqn_model_path = FlappyBird.g_ModuleBasePath .. "/Other/flappybird_" .. state_num .. "_" .. action_num .. ".model"
@@ -64,6 +64,9 @@ function FlappyBird.GCenter:Setup()
 		self._tip_1.visible = false
 		self._tip_2.visible = false
 	end
+	self._reward_text.visible = self._dqn_model ~= nil
+	self._target_x_text.visible = self._dqn_model ~= nil
+	self._target_y_text.visible = self._dqn_model ~= nil
 end
 
 function FlappyBird.GCenter:Restart()
@@ -87,9 +90,8 @@ end
 function FlappyBird.GCenter:CalcState()
 	local dst_x, start_y, end_y, total_y, center_y = self:CalcRange()
 	local state = {}
-	state[1] = dst_x - self._bird.x
-	state[2] = center_y - self._bird.y
-	state[3] = self._fly_y_rate
+	state[1] = center_y - self._bird.y
+	state[2] = self._fly_y_rate
 	return state
 end
 

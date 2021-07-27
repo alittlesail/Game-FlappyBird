@@ -120,7 +120,7 @@ class GCenter
 
         if (deeplearning.DeeplearningDQNModel != null)
         {
-            var state_num = 3;
+            var state_num = 2;
             var action_num = 2;
             this._dqn_model = new deeplearning.DeeplearningDQNModel(state_num, action_num, 100, 2000);
 
@@ -130,6 +130,10 @@ class GCenter
             this._tip_1.visible = false;
             this._tip_2.visible = false;
         }
+
+        this._reward_text.visible = this._dqn_model != null;
+        this._target_x_text.visible = this._dqn_model != null;
+        this._target_y_text.visible = this._dqn_model != null;
     }
 
     public fun Restart()
@@ -161,9 +165,9 @@ class GCenter
         var dst_x, start_y, end_y, total_y, center_y = this.CalcRange();
 
         var state = new List<double>();
-        state[1] = dst_x - this._bird.x;
-        state[2] = center_y - this._bird.y;
-        state[3] = this._fly_y_rate;
+        // state[1] = dst_x - this._bird.x;
+        state[1] = center_y - this._bird.y;
+        state[2] = this._fly_y_rate;
     
         return state;
     }
