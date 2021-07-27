@@ -56,7 +56,7 @@ function FlappyBird.GCenter:Setup()
 	self._max_score_text.text = self._max_score_text._user_data
 	self._frame_anti = ALittle.LoopFrame(Lua.Bind(self.LoopGroundFrame, self))
 	if deeplearning.DeeplearningDQNModel ~= nil then
-		local state_num = 2
+		local state_num = 3
 		local action_num = 2
 		self._dqn_model = deeplearning.DeeplearningDQNModel(state_num, action_num, 100, 2000)
 		self._dqn_model_path = FlappyBird.g_ModuleBasePath .. "/Other/flappybird_" .. state_num .. "_" .. action_num .. ".model"
@@ -90,8 +90,9 @@ end
 function FlappyBird.GCenter:CalcState()
 	local dst_x, start_y, end_y, total_y, center_y = self:CalcRange()
 	local state = {}
-	state[1] = center_y - self._bird.y
-	state[2] = self._fly_y_rate
+	state[1] = center_y
+	state[2] = self._bird.y
+	state[3] = self._fly_y_rate
 	return state
 end
 
@@ -117,7 +118,7 @@ function FlappyBird.GCenter:CalcRange()
 	return dst_x, start_y, end_y, total_y, center_y
 end
 
-function FlappyBird.GCenter:CalcReward(die, change_pipe)
+function FlappyBird.GCenter:CalcReward(die)
 	local src_x = self._bird.x
 	local src_y = self._bird.y
 	local dst_x, start_y, end_y, total_y, center_y = self:CalcRange()
@@ -132,22 +133,6 @@ function FlappyBird.GCenter:CalcReward(die, change_pipe)
 			local k = max / (center_y - start_y)
 			local b = max
 			reward = reward + (k * (src_y - center_y) + b)
-		end
-		if reward > 0 then
-			if src_y > center_y then
-				if self._fly_y_rate > 0 then
-					reward = reward - (ALittle.Math_Abs(src_y - center_y) / total_y * 2 * ALittle.Math_Abs(self._fly_y_rate))
-				else
-					reward = reward + (ALittle.Math_Abs(src_y - center_y) / total_y * 2 * ALittle.Math_Abs(self._fly_y_rate))
-				end
-			end
-			if src_y < center_y then
-				if self._fly_y_rate < 0 then
-					reward = reward - (ALittle.Math_Abs(src_y - center_y) / total_y * 2 * ALittle.Math_Abs(self._fly_y_rate))
-				else
-					reward = reward + (ALittle.Math_Abs(src_y - center_y) / total_y * 2 * ALittle.Math_Abs(self._fly_y_rate))
-				end
-			end
 		end
 		self._reward_text.text = ALittle.Math_Floor(reward)
 		self._reward_text.red = 0
@@ -184,7 +169,7 @@ function FlappyBird.GCenter:LoopGroundFrameImpl(frame_time)
 	local action = 0
 	if self._dqn_model ~= nil then
 		state = self:CalcState()
-		if ALittle.Math_RandomInt(1, 100) < 99 then
+		if ALittle.Math_RandomInt(1, 1000) < 1000 then
 			action = self._dqn_model:ChooseAction(state)
 		else
 			action = ALittle.Math_RandomInt(0, 1)
@@ -286,12 +271,13 @@ function FlappyBird.GCenter:LoopGroundFrameImpl(frame_time)
 			self._bird.angle = 90
 			self._bird:Stop()
 			if self._dqn_model ~= nil then
+				self._dqn_model:Save(self._dqn_model_path)
 				self:ShowGameOver()
 				self:HandleStartClick(nil)
 			end
 		end
-		if self._dqn_model ~= nil and (self._dieing == false or old_dieing == false) then
-			local reward = self:CalcReward(self._dieing, old_pipe ~= new_pipe)
+		if self._dqn_model ~= nil and (self._dieing == false or old_dieing == false) and old_pipe == new_pipe then
+			local reward = self:CalcReward(self._dieing)
 			local next_state = self:CalcState()
 			self._dqn_model:SaveTransition(state, action, reward, next_state)
 			local i = 1
@@ -333,10 +319,6 @@ function FlappyBird.GCenter:ShowGameOver()
 		self._max_score_text._user_data = cur_socre
 		self._max_score_text.text = self._max_score_text._user_data
 		FlappyBird.g_GConfig:SetConfig("max_score", cur_socre, nil)
-	end
-	if self._dqn_model ~= nil then
-		self._dqn_model:Save(self._dqn_model_path)
-		self:HandleStartClick(nil)
 	end
 end
 

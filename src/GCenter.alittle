@@ -120,7 +120,7 @@ class GCenter
 
         if (deeplearning.DeeplearningDQNModel != null)
         {
-            var state_num = 2;
+            var state_num = 3;
             var action_num = 2;
             this._dqn_model = new deeplearning.DeeplearningDQNModel(state_num, action_num, 100, 2000);
 
@@ -165,9 +165,9 @@ class GCenter
         var dst_x, start_y, end_y, total_y, center_y = this.CalcRange();
 
         var state = new List<double>();
-        // state[1] = dst_x - this._bird.x;
-        state[1] = center_y - this._bird.y;
-        state[2] = this._fly_y_rate;
+        state[1] = center_y;
+        state[2] = this._bird.y;
+        state[3] = this._fly_y_rate;
     
         return state;
     }
@@ -205,10 +205,9 @@ class GCenter
         return dst_x, start_y, end_y, total_y, center_y;
     }
 
-    private fun CalcReward(bool die, bool change_pipe) : double
+    private fun CalcReward(bool die) : double
     {
         // if (die) return -100;
-        // if (change_pipe) return 100;
 
         // 当前位置
         var src_x = this._bird.x;
@@ -235,25 +234,6 @@ class GCenter
                 var b = max;
 
                 reward += k * (src_y - center_y) + b;
-            }
-
-            if (reward > 0)
-            {
-                if (src_y > center_y)
-                {
-                    if (this._fly_y_rate > 0)
-                    	reward -= ALittle.Math_Abs(src_y - center_y) / total_y * 2 * ALittle.Math_Abs(this._fly_y_rate);
-                    else
-                        reward += ALittle.Math_Abs(src_y - center_y) / total_y * 2 * ALittle.Math_Abs(this._fly_y_rate);
-                }
-
-                if (src_y < center_y)
-                {
-                    if (this._fly_y_rate < 0)
-                    	reward -= ALittle.Math_Abs(src_y - center_y) / total_y * 2 * ALittle.Math_Abs(this._fly_y_rate);
-                    else
-                        reward += ALittle.Math_Abs(src_y - center_y) / total_y * 2 * ALittle.Math_Abs(this._fly_y_rate);
-                }
             }
 
             this._reward_text.text = ALittle.Math_Floor(reward);
@@ -305,7 +285,7 @@ class GCenter
         {
             state = this.CalcState();
 
-            if (ALittle.Math_RandomInt(1, 100) < 99)
+            if (ALittle.Math_RandomInt(1, 1000) < 1000)
             	action = this._dqn_model.ChooseAction(state);
             else
             	action = ALittle.Math_RandomInt(0, 1);
@@ -452,18 +432,19 @@ class GCenter
                 this._bird.Stop();
                 if (this._dqn_model != null)
                 {
+                    this._dqn_model.Save(this._dqn_model_path);
                     this.ShowGameOver();
                     this.HandleStartClick(null);
                 }
             }
 
-            if (this._dqn_model != null && (this._dieing == false || old_dieing == false))
+            if (this._dqn_model != null && (this._dieing == false || old_dieing == false) && old_pipe == new_pipe)
             {
-                var reward = this.CalcReward(this._dieing, old_pipe != new_pipe);
+                var reward = this.CalcReward(this._dieing);
                 var next_state = this.CalcState();
                 this._dqn_model.SaveTransition(state, action, reward, next_state);
                 for (var i = 1; i <= 32; 1)
-                	this._dqn_model.Learn();
+                    this._dqn_model.Learn();
             }
         }
     }
@@ -506,12 +487,6 @@ class GCenter
             this._max_score_text._user_data = cur_socre;
             this._max_score_text.text = this._max_score_text._user_data;
             g_GConfig.SetConfig("max_score", cur_socre, null);
-        }
-
-        if (this._dqn_model != null)
-        {
-            this._dqn_model.Save(this._dqn_model_path);
-			this.HandleStartClick(null);
         }
     }
     
