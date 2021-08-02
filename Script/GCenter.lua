@@ -55,10 +55,10 @@ function FlappyBird.GCenter:Setup()
 	self._max_score_text._user_data = FlappyBird.g_GConfig:GetConfig("max_score", 0)
 	self._max_score_text.text = self._max_score_text._user_data
 	self._frame_anti = ALittle.LoopFrame(Lua.Bind(self.LoopGroundFrame, self))
-	if deeplearning.DeeplearningDQNModel ~= nil then
+	if deeplearning ~= nil and deeplearning.DeeplearningDqnDnnModel ~= nil then
 		local state_num = 3
 		local action_num = 2
-		self._dqn_model = deeplearning.DeeplearningDQNModel(state_num, action_num, 100, 2000)
+		self._dqn_model = deeplearning.DeeplearningDqnDnnModel(state_num, action_num, 100, 2000)
 		self._dqn_model_path = FlappyBird.g_ModuleBasePath .. "/Other/flappybird_" .. state_num .. "_" .. action_num .. ".model"
 		self._dqn_model:Load(self._dqn_model_path)
 		self._tip_1.visible = false

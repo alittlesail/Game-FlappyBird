@@ -74,7 +74,7 @@ public class DeeplearningSpeechModel : DeeplearningModel
 }
 
 // DQN
-public class DeeplearningDQNModel : DeeplearningModel
+public class DeeplearningDqnDnnModel : DeeplearningModel
 {
     // state_count 状态个数
     // action_count 操作个数
