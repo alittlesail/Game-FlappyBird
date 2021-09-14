@@ -51,7 +51,7 @@ class GCenter
     private double _fly_y_rate = 0;
 
     [Language(Lua)]
-    private ADeeplearning.ARobotDuelingDqnDnnModel _dqn_model;
+    private ADeeplearning.ARobotDqnDnnModel _dqn_model;
 
     private double _dqn_range = 0;
     private ALittle.DisplayObject _reward_text;
@@ -117,11 +117,11 @@ class GCenter
         // 帧动画
         this._frame_anti = new ALittle.LoopFrame(bind(this.LoopGroundFrame, this));
 
-        if (ADeeplearning != null && ADeeplearning.ARobotDuelingDqnDnnModel != null)
+        if (ADeeplearning != null && ADeeplearning.ARobotDqnDnnModel != null)
         {
             var state_num = 3;
             var action_num = 2;
-            this._dqn_model = new ADeeplearning.ARobotDuelingDqnDnnModel(state_num, action_num, 100, 2000);
+            this._dqn_model = new ADeeplearning.ARobotDqnDnnModel(state_num, action_num, 100, 2000);
 
             this._dqn_model.Load(g_ModuleBasePath.."/Other/flappybird_"..state_num.."_"..action_num..".model");
 
@@ -433,7 +433,7 @@ class GCenter
                 var reward = this.CalcReward(this._dieing);
                 var next_state = this.CalcState();
                 this._dqn_model.SaveTransition(state, next_state, action, reward);
-                this._dqn_model.Train(100);
+                this._dqn_model.Train(200);
             }
         }
     }

@@ -55,10 +55,10 @@ function FlappyBird.GCenter:Setup()
 	self._max_score_text._user_data = FlappyBird.g_GConfig:GetConfig("max_score", 0)
 	self._max_score_text.text = self._max_score_text._user_data
 	self._frame_anti = ALittle.LoopFrame(Lua.Bind(self.LoopGroundFrame, self))
-	if ADeeplearning ~= nil and ADeeplearning.ARobotDuelingDqnDnnModel ~= nil then
+	if ADeeplearning ~= nil and ADeeplearning.ARobotDqnDnnModel ~= nil then
 		local state_num = 3
 		local action_num = 2
-		self._dqn_model = ADeeplearning.ARobotDuelingDqnDnnModel(state_num, action_num, 100, 2000)
+		self._dqn_model = ADeeplearning.ARobotDqnDnnModel(state_num, action_num, 100, 2000)
 		self._dqn_model:Load(FlappyBird.g_ModuleBasePath .. "/Other/flappybird_" .. state_num .. "_" .. action_num .. ".model")
 		self._tip_1.visible = false
 		self._tip_2.visible = false
@@ -275,7 +275,7 @@ function FlappyBird.GCenter:LoopGroundFrame(frame_time)
 			local reward = self:CalcReward(self._dieing)
 			local next_state = self:CalcState()
 			self._dqn_model:SaveTransition(state, next_state, action, reward)
-			self._dqn_model:Train(100)
+			self._dqn_model:Train(200)
 		end
 	end
 end
