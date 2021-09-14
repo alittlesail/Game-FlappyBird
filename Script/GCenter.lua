@@ -58,7 +58,7 @@ function FlappyBird.GCenter:Setup()
 	if ADeeplearning ~= nil and ADeeplearning.ARobotDqnDnnModel ~= nil then
 		local state_num = 3
 		local action_num = 2
-		self._dqn_model = ADeeplearning.ARobotDqnDnnModel(state_num, action_num, 100, 2000)
+		self._dqn_model = ADeeplearning.ARobotDqnDnnModel(state_num, action_num, 100, 1000)
 		self._dqn_model:Load(FlappyBird.g_ModuleBasePath .. "/Other/flappybird_" .. state_num .. "_" .. action_num .. ".model")
 		self._tip_1.visible = false
 		self._tip_2.visible = false
@@ -164,7 +164,7 @@ function FlappyBird.GCenter:LoopGroundFrame(frame_time)
 	local action = 0
 	if self._dqn_model ~= nil then
 		state = self:CalcState()
-		if ALittle.Math_RandomInt(1, 1000) < 1000 then
+		if ALittle.Math_RandomInt(1, 1000) < 10000 then
 			action = self._dqn_model:ChooseAction(state)
 		else
 			action = ALittle.Math_RandomInt(0, 1)
@@ -274,8 +274,9 @@ function FlappyBird.GCenter:LoopGroundFrame(frame_time)
 		if self._dqn_model ~= nil and (self._dieing == false or old_dieing == false) and old_pipe == new_pipe then
 			local reward = self:CalcReward(self._dieing)
 			local next_state = self:CalcState()
-			self._dqn_model:SaveTransition(state, next_state, action, reward)
-			self._dqn_model:Train(200)
+			if self._dqn_model:SaveTransition(state, next_state, action, reward) then
+				self._dqn_model:Train(100)
+			end
 		end
 	end
 end
