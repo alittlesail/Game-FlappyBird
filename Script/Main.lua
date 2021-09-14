@@ -23,20 +23,14 @@ function FlappyBird.__Browser_Shutdown()
 end
 
 FlappyBird.g_Control = nil
+FlappyBird.g_ADeeplearningControl = nil
 FlappyBird.g_LayerGroup = nil
 FlappyBird.g_ModuleBasePath = nil
 function FlappyBird.__Module_Setup(layer_group, control, module_base_path, script_base_path, debug)
 	FlappyBird.g_Control = control
 	FlappyBird.g_LayerGroup = layer_group
 	FlappyBird.g_ModuleBasePath = module_base_path
-	if ALittle.System_GetPlatform() == "Windows" then
-		local deeplearning_path = "Module/ADeeplearning/"
-		package.cpath = package.cpath .. ";./" .. deeplearning_path .. "Other/?.dll"
-		local path = ALittle.File_GetCurrentPath()
-		ALittle.File_SetCurrentPath(path .. "/" .. deeplearning_path .. "Other")
-		require("deeplearning")
-		ALittle.File_SetCurrentPath(path)
-	end
+	FlappyBird.g_ADeeplearningControl = A_ModuleSystem:LoadPlugin("ADeeplearning")
 	Require(script_base_path, "GCenter")
 	FlappyBird.g_GCenter:Setup()
 end

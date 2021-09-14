@@ -51,8 +51,7 @@ class GCenter
     private double _fly_y_rate = 0;
 
     [Language(Lua)]
-    private deeplearning.DeeplearningDqnDnnModel _dqn_model;
-    private string _dqn_model_path;
+    private ADeeplearning.ARobotDuelingDqnDnnModel _dqn_model;
 
     private double _dqn_range = 0;
     private ALittle.DisplayObject _reward_text;
@@ -118,14 +117,13 @@ class GCenter
         // 帧动画
         this._frame_anti = new ALittle.LoopFrame(bind(this.LoopGroundFrame, this));
 
-        if (deeplearning != null && deeplearning.DeeplearningDqnDnnModel != null)
+        if (ADeeplearning != null && ADeeplearning.ARobotDuelingDqnDnnModel != null)
         {
             var state_num = 3;
             var action_num = 2;
-            this._dqn_model = new deeplearning.DeeplearningDqnDnnModel(state_num, action_num, 100, 2000);
+            this._dqn_model = new ADeeplearning.ARobotDuelingDqnDnnModel(state_num, action_num, 100, 2000);
 
-            this._dqn_model_path = g_ModuleBasePath.."/Other/flappybird_"..state_num.."_"..action_num..".model";
-            this._dqn_model.Load(this._dqn_model_path);
+            this._dqn_model.Load(g_ModuleBasePath.."/Other/flappybird_"..state_num.."_"..action_num..".model");
 
             this._tip_1.visible = false;
             this._tip_2.visible = false;
@@ -278,7 +276,7 @@ class GCenter
             state = this.CalcState();
 
             if (ALittle.Math_RandomInt(1, 1000) < 1000)
-            	action = this._dqn_model.ChooseAction(state);
+                action = this._dqn_model.ChooseAction(state);
             else
             	action = ALittle.Math_RandomInt(0, 1);
         }
@@ -424,7 +422,7 @@ class GCenter
                 this._bird.Stop();
                 if (this._dqn_model != null)
                 {
-                    this._dqn_model.Save(this._dqn_model_path);
+                    this._dqn_model.Save();
                     this.ShowGameOver();
                     this.HandleStartClick(null);
                 }
@@ -434,9 +432,8 @@ class GCenter
             {
                 var reward = this.CalcReward(this._dieing);
                 var next_state = this.CalcState();
-                this._dqn_model.SaveTransition(state, action, reward, next_state);
-                for (var i = 1; i <= 32; 1)
-                    this._dqn_model.Learn();
+                this._dqn_model.SaveTransition(state, next_state, action, reward);
+                this._dqn_model.Train(100);
             }
         }
     }
@@ -490,7 +487,7 @@ class GCenter
 
         if (this._dqn_model != null)
         {
-            this._dqn_model.Save(this._dqn_model_path);
+            this._dqn_model.Save();
             this._dqn_model = null;
         }
     }

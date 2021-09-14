@@ -27,6 +27,7 @@ public static __Browser_Shutdown()
 }
 
 protected var g_Control:ALittle.ControlSystem;
+protected var g_ADeeplearningControl:ALittle.ControlSystem;
 protected var g_LayerGroup:ALittle.DisplayLayout;
 protected var g_ModuleBasePath:string;
 
@@ -39,16 +40,8 @@ public async static __Module_Setup(ALittle.DisplayLayout layer_group, ALittle.Co
 	g_LayerGroup = layer_group;
 	g_ModuleBasePath = module_base_path;
 
-	[Language(Lua)]
-	if (ALittle.System_GetPlatform() == "Windows")
-	{
-        var deeplearning_path = "Module/ADeeplearning/";
-		package.cpath = package.cpath..";./"..deeplearning_path.."Other/?.dll";
-        var path = ALittle.File_GetCurrentPath();
-        ALittle.File_SetCurrentPath(path.."/"..deeplearning_path.."Other");
-        lua.require("deeplearning");
-        ALittle.File_SetCurrentPath(path);
-    }
+	// 加载UI插件
+    g_ADeeplearningControl = A_ModuleSystem.LoadPlugin("ADeeplearning");
     
 	alittle.Require(script_base_path, "GCenter");
 	g_GCenter.Setup();

@@ -55,12 +55,11 @@ function FlappyBird.GCenter:Setup()
 	self._max_score_text._user_data = FlappyBird.g_GConfig:GetConfig("max_score", 0)
 	self._max_score_text.text = self._max_score_text._user_data
 	self._frame_anti = ALittle.LoopFrame(Lua.Bind(self.LoopGroundFrame, self))
-	if deeplearning ~= nil and deeplearning.DeeplearningDqnDnnModel ~= nil then
+	if ADeeplearning ~= nil and ADeeplearning.ARobotDuelingDqnDnnModel ~= nil then
 		local state_num = 3
 		local action_num = 2
-		self._dqn_model = deeplearning.DeeplearningDqnDnnModel(state_num, action_num, 100, 2000)
-		self._dqn_model_path = FlappyBird.g_ModuleBasePath .. "/Other/flappybird_" .. state_num .. "_" .. action_num .. ".model"
-		self._dqn_model:Load(self._dqn_model_path)
+		self._dqn_model = ADeeplearning.ARobotDuelingDqnDnnModel(state_num, action_num, 100, 2000)
+		self._dqn_model:Load(FlappyBird.g_ModuleBasePath .. "/Other/flappybird_" .. state_num .. "_" .. action_num .. ".model")
 		self._tip_1.visible = false
 		self._tip_2.visible = false
 	end
@@ -267,7 +266,7 @@ function FlappyBird.GCenter:LoopGroundFrame(frame_time)
 			self._bird.angle = 90
 			self._bird:Stop()
 			if self._dqn_model ~= nil then
-				self._dqn_model:Save(self._dqn_model_path)
+				self._dqn_model:Save()
 				self:ShowGameOver()
 				self:HandleStartClick(nil)
 			end
@@ -275,13 +274,8 @@ function FlappyBird.GCenter:LoopGroundFrame(frame_time)
 		if self._dqn_model ~= nil and (self._dieing == false or old_dieing == false) and old_pipe == new_pipe then
 			local reward = self:CalcReward(self._dieing)
 			local next_state = self:CalcState()
-			self._dqn_model:SaveTransition(state, action, reward, next_state)
-			local i = 1
-			while true do
-				if not(i <= 32) then break end
-				self._dqn_model:Learn()
-				i = i+(1)
-			end
+			self._dqn_model:SaveTransition(state, next_state, action, reward)
+			self._dqn_model:Train(100)
 		end
 	end
 end
@@ -323,7 +317,7 @@ function FlappyBird.GCenter:Shutdown()
 	self._frame_anti:Stop()
 	self._bird_image_loop:Stop()
 	if self._dqn_model ~= nil then
-		self._dqn_model:Save(self._dqn_model_path)
+		self._dqn_model:Save()
 		self._dqn_model = nil
 	end
 end
