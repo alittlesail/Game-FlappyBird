@@ -58,7 +58,7 @@ function FlappyBird.GCenter:Setup()
 	if ADeeplearning ~= nil and ADeeplearning.ARobotDqnDnnModel ~= nil then
 		local state_num = 3
 		local action_num = 2
-		self._dqn_model = ADeeplearning.ARobotDqnDnnModel(state_num, action_num, 100, 1000)
+		self._dqn_model = ADeeplearning.ARobotDqnDnnModel(state_num, action_num, 512, 1000)
 		self._dqn_model:Load(FlappyBird.g_ModuleBasePath .. "/Other/flappybird_" .. state_num .. "_" .. action_num .. ".model")
 		self._tip_1.visible = false
 		self._tip_2.visible = false
@@ -275,7 +275,7 @@ function FlappyBird.GCenter:LoopGroundFrame(frame_time)
 			local reward = self:CalcReward(self._dieing)
 			local next_state = self:CalcState()
 			if self._dqn_model:SaveTransition(state, next_state, action, reward) then
-				self._dqn_model:Train(100)
+				self._dqn_model:Train(10)
 			end
 		end
 	end

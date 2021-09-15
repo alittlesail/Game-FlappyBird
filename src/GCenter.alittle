@@ -121,7 +121,7 @@ class GCenter
         {
             var state_num = 3;
             var action_num = 2;
-            this._dqn_model = new ADeeplearning.ARobotDqnDnnModel(state_num, action_num, 100, 1000);
+            this._dqn_model = new ADeeplearning.ARobotDqnDnnModel(state_num, action_num, 512, 1000);
             this._dqn_model.Load(g_ModuleBasePath.."/Other/flappybird_"..state_num.."_"..action_num..".model");
 
             this._tip_1.visible = false;
@@ -432,7 +432,7 @@ class GCenter
                 var reward = this.CalcReward(this._dieing);
                 var next_state = this.CalcState();
                 if (this._dqn_model.SaveTransition(state, next_state, action, reward))
-                    this._dqn_model.Train(100);
+                    this._dqn_model.Train(10);
             }
         }
     }
